@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b3d3b">
 <title>Noor — Islamic Learning</title>
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
 <style>
   :root{
     --bg:#0b1f1e; --bg2:#0e2b29; --card:#123634; --card2:#17423f;
@@ -156,7 +158,6 @@ async function uploadToCloudinary(file) {
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
-  // Cloudinary 'auto' endpoint handles images, videos, and raw files (like audio)
   const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
     method: 'POST',
     body: formData
@@ -167,7 +168,7 @@ async function uploadToCloudinary(file) {
   }
 
   const data = await response.json();
-  return data.secure_url; // The permanent link to the file
+  return data.secure_url; 
 }
 
 let state = {
@@ -868,5 +869,15 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 </script>
+
+<!-- PWA Service Worker Registration -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+    });
+  }
+</script>
+
 </body>
 </html>
