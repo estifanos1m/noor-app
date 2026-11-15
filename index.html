@@ -99,10 +99,29 @@
 <body>
 <div id="app"></div>
 
-<script>
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDC0Kuc8fSTzG5mBNvavf4s4rTKo7Vx5DQ",
+  authDomain: "noor-app-8b72e.firebaseapp.com",
+  projectId: "noor-app-8b72e",
+  storageBucket: "noor-app-8b72e.firebasestorage.app",
+  messagingSenderId: "857905665745",
+  appId: "1:857905665745:web:b640a80a49bd2fa08497f0"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 /* =========================================================
-   NOOR — Islamic Learning App
-   Single-file app. All data is stored on the device.
+   APP LOGIC
    ========================================================= */
 
 const store = {
@@ -110,10 +129,8 @@ const store = {
   set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
 };
 
-const K_USERS   = 'noor_users_v1';
-const K_LEVELS  = 'noor_levels_v1';
-const K_SESSION = 'noor_session_v1';
-const K_SETTINGS= 'noor_settings_v1';
+const K_LEVELS   = 'noor_levels_v1';
+const K_SETTINGS = 'noor_settings_v1';
 
 const mediaDB = {
   _db: null,
@@ -145,14 +162,6 @@ const mediaDB = {
       const rq = tx.objectStore('files').get(key);
       rq.onsuccess = () => res(rq.result);
       rq.onerror = () => rej(rq.error);
-    });
-  },
-  async del(key){
-    await this.open();
-    return new Promise(res => {
-      const tx = this._db.transaction('files', 'readwrite');
-      tx.objectStore('files').delete(key);
-      tx.oncomplete = res;
     });
   }
 };
@@ -194,54 +203,45 @@ function ytId(u){
   return m ? m[1] : null;
 }
 
-async function hashPass(str){
-  if(window.crypto && crypto.subtle){
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
-  }
-  let h = 0;
-  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
-  return 'f' + Math.abs(h).toString(16);
-}
-
 let state = {
   screen: 'auth',
   authMode: 'signin',
   username: null,
+  uid: null,
+  userProgress: {},
   levelId: null,
   quiz: null,
   teacherUnlocked: false,
   editing: null,
-  flash: null
+  flash: null,
+  loading: true
 };
 
 const getLevels   = () => store.get(K_LEVELS, DEFAULT_LEVELS);
 const setLevels   = l  => store.set(K_LEVELS, l);
 const getSettings = () => store.get(K_SETTINGS, { pin:'1234', passMark:80 });
 const setSettings = s  => store.set(K_SETTINGS, s);
-const getUsers    = () => store.get(K_USERS, {});
-const setUsers    = u  => store.set(K_USERS, u);
-const getUser     = () => getUsers()[state.username] || null;
-
-function saveUser(user){
-  const all = getUsers();
-  all[state.username] = user;
-  setUsers(all);
-}
 
 function getLevel(id){ return getLevels().find(l => l.id === id); }
 
-function isUnlocked(index, user){
+function isUnlocked(index, userProgress){
   if(index === 0) return true;
   const levels = getLevels();
   const prev = levels[index-1];
-  return !!(user && user.progress && user.progress[prev.id] && user.progress[prev.id].passed);
+  return !!(userProgress && userProgress[prev.id] && userProgress[prev.id].passed);
 }
 
 function flash(msg){
   state.flash = msg;
   render();
   setTimeout(() => { state.flash = null; render(); }, 1800);
+}
+
+async function saveProgressToCloud(levelId, score, passed) {
+  if(!state.uid) return;
+  state.userProgress[levelId] = { passed, score, date: Date.now() };
+  const userRef = doc(db, 'users', state.uid);
+  await setDoc(userRef, { progress: state.userProgress }, { merge: true });
 }
 
 function authView(){
@@ -256,31 +256,30 @@ function authView(){
       <button data-act="auth-mode" data-mode="signin" class="${state.authMode==='signin'?'on':''}">Sign in</button>
       <button data-act="auth-mode" data-mode="signup" class="${state.authMode==='signup'?'on':''}">Create account</button>
     </div>
-    <label>Username</label>
-    <input id="auth-user" autocomplete="username" placeholder="e.g. ahmad" value="">
+    <label>Email</label>
+    <input id="auth-user" type="email" autocomplete="email" placeholder="e.g. student@example.com" value="">
     <label>Password</label>
-    <input id="auth-pass" type="password" autocomplete="current-password" placeholder="At least 4 characters">
+    <input id="auth-pass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
     ${state.authMode==='signup' ? `
       <label>Confirm password</label>
       <input id="auth-pass2" type="password" placeholder="Repeat password">` : ''}
-    <button class="big" data-act="auth-submit">
+    <button class="big" data-act="auth-submit" id="btn-auth">
       ${state.authMode==='signin' ? 'Sign in' : 'Create my account'}
     </button>
     <p class="muted small center" style="margin-top:14px">
-      Your progress is saved on this device.
+      Your progress is saved securely in the cloud.
     </p>
   </div>`;
 }
 
 function homeView(){
-  const user = getUser();
   const levels = getLevels();
-  const passed = levels.filter(l => user.progress?.[l.id]?.passed).length;
+  const passed = levels.filter(l => state.userProgress?.[l.id]?.passed).length;
   const pct = Math.round((passed / Math.max(levels.length,1)) * 100);
 
   const cards = levels.map((lv, i) => {
-    const unlocked = isUnlocked(i, user);
-    const prog = user.progress?.[lv.id];
+    const unlocked = isUnlocked(i, state.userProgress);
+    const prog = state.userProgress?.[lv.id];
     const status = prog?.passed
       ? `Passed · ${prog.score}%`
       : unlocked ? (lv.quiz?.length ? 'Ready to start' : 'No test yet') : 'Locked';
@@ -297,9 +296,9 @@ function homeView(){
 
   return `
   <div class="topbar">
-    <div style="flex:1">
+    <div style="flex:1;min-width:0">
       <p class="muted small" style="margin:0">Assalamu alaykum</p>
-      <h2 style="margin:0">${esc(state.username)}</h2>
+      <h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2>
     </div>
     <button class="ghost sm" data-act="teacher-open">👩‍🏫 Teacher</button>
     <button class="ghost sm" data-act="signout">Exit</button>
@@ -336,7 +335,7 @@ function levelView(){
   }).join('');
 
   const hasQuiz = lv.quiz && lv.quiz.length > 0;
-  const alreadyPassed = getUser()?.progress?.[lv.id]?.passed;
+  const alreadyPassed = state.userProgress?.[lv.id]?.passed;
 
   return `
   <div class="topbar">
@@ -538,7 +537,9 @@ function render(){
   const app = document.getElementById('app');
   let html = '';
 
-  if(!state.username){
+  if(state.loading) {
+    html = `<div class="center" style="margin-top:40vh"><h2>Loading Noor...</h2><p class="muted">Connecting to cloud...</p></div>`;
+  } else if(!state.username){
     html = authView();
   } else if(state.screen === 'home'){
     html = homeView();
@@ -581,40 +582,42 @@ document.addEventListener('click', async e => {
   }
 
   if(act === 'auth-submit'){
-    const u = (document.getElementById('auth-user')?.value || '').trim().toLowerCase();
+    const email = (document.getElementById('auth-user')?.value || '').trim();
     const p = document.getElementById('auth-pass')?.value || '';
-    if(u.length < 2) return flash('Username must be at least 2 characters');
-    if(p.length < 4) return flash('Password must be at least 4 characters');
+    if(!email.includes('@')) return flash('Please enter a valid email address');
+    if(p.length < 6) return flash('Password must be at least 6 characters');
 
-    const users = getUsers();
+    const btn = document.getElementById('btn-auth');
+    btn.disabled = true;
+    btn.innerText = 'Connecting...';
 
-    if(state.authMode === 'signup'){
-      const p2 = document.getElementById('auth-pass2')?.value || '';
-      if(p !== p2) return flash('Passwords do not match');
-      if(users[u]) return flash('That username is already taken');
-      users[u] = { name: u, pass: await hashPass(p), progress: {}, createdAt: Date.now() };
-      setUsers(users);
-      state.username = u;
-      store.set(K_SESSION, u);
-      state.screen = 'home';
-      flash('Account created — welcome!');
-      return;
-    } else {
-      const user = users[u];
-      if(!user) return flash('No account with that username');
-      if(user.pass !== await hashPass(p)) return flash('Wrong password');
-      state.username = u;
-      store.set(K_SESSION, u);
-      state.screen = 'home';
-      render();
-      return;
+    try {
+      if(state.authMode === 'signup'){
+        const p2 = document.getElementById('auth-pass2')?.value || '';
+        if(p !== p2) {
+          btn.disabled = false; btn.innerText = 'Create my account';
+          return flash('Passwords do not match');
+        }
+        await createUserWithEmailAndPassword(auth, email, p);
+      } else {
+        await signInWithEmailAndPassword(auth, email, p);
+      }
+    } catch(err) {
+      btn.disabled = false; 
+      btn.innerText = state.authMode === 'signin' ? 'Sign in' : 'Create my account';
+      if(err.code === 'auth/email-already-in-use') flash('Email already registered');
+      else if(err.code === 'auth/invalid-credential') flash('Wrong email or password');
+      else flash(err.message);
     }
+    return;
   }
 
   if(act === 'signout'){
+    await signOut(auth);
     state.username = null;
+    state.uid = null;
+    state.userProgress = {};
     state.screen = 'auth';
-    localStorage.removeItem(K_SESSION);
     render(); return;
   }
 
@@ -658,10 +661,7 @@ document.addEventListener('click', async e => {
     qs.done = true;
     const pct = Math.round((qs.correct / lv.quiz.length) * 100);
     if(pct >= getSettings().passMark){
-      const user = getUser();
-      user.progress = user.progress || {};
-      user.progress[lv.id] = { passed:true, score:pct, date:Date.now() };
-      saveUser(user);
+      await saveProgressToCloud(lv.id, pct, true);
     }
     render(); return;
   }
@@ -790,21 +790,44 @@ document.addEventListener('change', async e => {
 });
 
 document.addEventListener('keydown', e => {
-  if(e.key === 'Enter' && !state.username){
+  if(e.key === 'Enter' && !state.username && !state.loading){
     document.querySelector('[data-act="auth-submit"]')?.click();
   }
 });
 
-(function init(){
-  if(store.get(K_LEVELS, null) === null) setLevels(DEFAULT_LEVELS);
-  if(store.get(K_SETTINGS, null) === null) setSettings({ pin:'1234', passMark:80 });
-  const sess = store.get(K_SESSION, null);
-  if(sess && getUsers()[sess]){
-    state.username = sess;
+if(store.get(K_LEVELS, null) === null) setLevels(DEFAULT_LEVELS);
+if(store.get(K_SETTINGS, null) === null) setSettings({ pin:'1234', passMark:80 });
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    state.uid = user.uid;
+    state.username = user.email;
+    
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().progress) {
+        state.userProgress = docSnap.data().progress;
+      } else {
+        state.userProgress = {};
+      }
+    } catch (e) {
+      console.error("Error fetching progress:", e);
+      state.userProgress = {};
+    }
+    
     state.screen = 'home';
+    state.loading = false;
+    render();
+  } else {
+    state.username = null;
+    state.uid = null;
+    state.userProgress = {};
+    state.screen = 'auth';
+    state.loading = false;
+    render();
   }
-  render();
-})();
+});
 </script>
 </body>
 </html>
