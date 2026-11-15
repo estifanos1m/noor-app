@@ -9,14 +9,12 @@
     {
       "src": "https://ui-avatars.com/api/?name=N&background=0b1f1e&color=2ee6a8&size=192&format=png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "https://ui-avatars.com/api/?name=N&background=0b1f1e&color=2ee6a8&size=512&format=png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
