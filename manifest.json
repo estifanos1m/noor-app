@@ -7,15 +7,15 @@
   "theme_color": "#0b3d3b",
   "icons": [
     {
-      "src": "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230b1f1e'/%3E%3Cpath d='M50 20 A 30 30 0 1 0 80 50 A 25 25 0 1 1 50 20 Z' fill='%232ee6a8'/%3E%3Ccircle cx='65' cy='35' r='5' fill='%232ee6a8'/%3E%3C/svg%3E",
+      "src": "https://ui-avatars.com/api/?name=N&background=0b1f1e&color=2ee6a8&size=192&format=png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230b1f1e'/%3E%3Cpath d='M50 20 A 30 30 0 1 0 80 50 A 25 25 0 1 1 50 20 Z' fill='%232ee6a8'/%3E%3Ccircle cx='65' cy='35' r='5' fill='%232ee6a8'/%3E%3C/svg%3E",
+      "src": "https://ui-avatars.com/api/?name=N&background=0b1f1e&color=2ee6a8&size=512&format=png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
