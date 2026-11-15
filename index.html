@@ -184,7 +184,9 @@ let state = {
   editing: null,
   flash: null,
   loading: true,
-  uploading: false
+  uploading: false,
+  installPrompt: null,
+  isStandalone: false
 };
 
 const getSettings = () => {
@@ -292,13 +294,19 @@ function homeView(){
       </div>`;
   }).join('');
 
+  // Install App Button logic
+  const installBtnHtml = state.isStandalone 
+    ? `<button class="ghost sm" data-act="install-app" style="color:var(--muted);border-color:var(--line)">✅ Installed</button>`
+    : `<button class="ghost sm" data-act="install-app" style="color:var(--warn);border-color:var(--warn)">📲 Install</button>`;
+
   return `
   <div class="topbar">
     <div style="flex:1;min-width:0">
       <p class="muted small" style="margin:0">Assalamu alaykum</p>
       <h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2>
     </div>
-    <button class="ghost sm" data-act="teacher-open">👩‍🏫 Teacher</button>
+    ${installBtnHtml}
+    <button class="ghost sm" data-act="teacher-open">👩‍🏫</button>
     <button class="ghost sm" data-act="signout">Exit</button>
   </div>
 
@@ -578,6 +586,28 @@ document.addEventListener('click', async e => {
   if(!el) return;
   const act = el.dataset.act;
 
+  // --- INSTALL APP BUTTON ---
+  if (act === 'install-app') {
+    if (state.isStandalone) {
+      flash('App is already installed!');
+      return;
+    }
+    if (state.installPrompt) {
+      state.installPrompt.prompt();
+      const { outcome } = await state.installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        state.installPrompt = null;
+        state.isStandalone = true;
+        render();
+      }
+    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      flash('On iOS: Tap Share ⍗, then "Add to Home Screen"');
+    } else {
+      flash('App is already installed or not supported by this browser.');
+    }
+    return;
+  }
+
   if(act === 'auth-mode'){
     state.authMode = el.dataset.mode;
     render(); return;
@@ -836,6 +866,24 @@ document.addEventListener('keydown', e => {
 });
 
 if(!localStorage.getItem(K_SETTINGS)) setSettings({ pin:'1234', passMark:80 });
+
+// --- PWA INSTALL PROMPT LISTENERS ---
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+  state.isStandalone = true;
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  state.installPrompt = e;
+  render(); 
+});
+
+window.addEventListener('appinstalled', () => {
+  state.installPrompt = null;
+  state.isStandalone = true;
+  render();
+  flash('App installed successfully! 🎉');
+});
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
