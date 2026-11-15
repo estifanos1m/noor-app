@@ -1,4 +1,10 @@
+const CACHE_NAME = 'noor-v1';
+const ASSETS = ['./', './index.html', './manifest.json'];
+
 self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+  );
   self.skipWaiting();
 });
 
@@ -7,11 +13,9 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // This handler must not be empty for WebAPK installation.
-  // A simple cache‑first strategy is enough.
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      return cached || fetch(e.request);
+    caches.match(e.request).then((res) => {
+      return res || fetch(e.request);
     })
   );
 });
