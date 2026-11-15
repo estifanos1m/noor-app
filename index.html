@@ -92,7 +92,7 @@
   .feedback.ok{background:#0f4a35;color:#b6ffe4}
   .feedback.no{background:#4a1f1f;color:#ffd0d0}
   .flash{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--accent);color:#052522;
-    padding:12px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:99;text-align:center}
+    padding:12px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:99}
   .hero{text-align:center;padding:30px 0 10px}
   .hero .logo{font-size:56px;line-height:1}
 </style>
@@ -165,7 +165,7 @@ let state = {
   screen: 'auth', authMode: 'signin', username: null, uid: null,
   userProgress: {}, levels: [], levelId: null, quiz: null,
   teacherUnlocked: false, editing: null, flash: null,
-  loading: true, uploading: false, installPrompt: null, isStandalone: false
+  loading: true, uploading: false
 };
 
 const getSettings = () => {
@@ -187,7 +187,7 @@ function isUnlocked(index, userProgress){
 function flash(msg){
   state.flash = msg;
   render();
-  setTimeout(() => { state.flash = null; render(); }, 4000);
+  setTimeout(() => { state.flash = null; render(); }, 1800);
 }
 
 async function saveProgressToCloud(levelId, score, passed) {
@@ -243,17 +243,12 @@ function homeView(){
       </div>`;
   }).join('');
 
-  const installBtnHtml = state.isStandalone 
-    ? `<button class="ghost sm" data-act="install-app" style="color:var(--muted);border-color:var(--line)">✅ Installed</button>`
-    : `<button class="ghost sm" data-act="install-app" style="color:var(--warn);border-color:var(--warn)">📲 Install</button>`;
-
   return `
   <div class="topbar">
     <div style="flex:1;min-width:0">
       <p class="muted small" style="margin:0">Assalamu alaykum</p>
       <h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2>
     </div>
-    ${installBtnHtml}
     <button class="ghost sm" data-act="teacher-open">👩‍🏫</button>
     <button class="ghost sm" data-act="signout">Exit</button>
   </div>
@@ -419,22 +414,6 @@ document.addEventListener('click', async e => {
   if(!el) return;
   const act = el.dataset.act;
 
-  if (act === 'install-app') {
-    if (state.isStandalone) {
-      flash('App is already installed!');
-    } else if (state.installPrompt) {
-      state.installPrompt.prompt();
-      const { outcome } = await state.installPrompt.userChoice;
-      if (outcome === 'accepted') {
-        state.installPrompt = null; state.isStandalone = true; render();
-      }
-    } else {
-      // Helpful fallback if Chrome blocks the prompt
-      flash('Tap Chrome\'s 3 dots (⋮) and select "Install app" to add Noor.');
-    }
-    return;
-  }
-
   if(act === 'auth-mode'){ state.authMode = el.dataset.mode; render(); return; }
   if(act === 'auth-submit'){
     const email = (document.getElementById('auth-user')?.value || '').trim();
@@ -544,10 +523,6 @@ document.addEventListener('change', async e => {
 });
 
 if(!localStorage.getItem(K_SETTINGS)) setSettings({ pin:'1234', passMark:80 });
-
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) state.isStandalone = true;
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; render(); });
-window.addEventListener('appinstalled', () => { state.installPrompt = null; state.isStandalone = true; render(); flash('App installed! 🎉'); });
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
