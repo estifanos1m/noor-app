@@ -105,7 +105,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDC0Kuc8fSTzG5mBNvavf4s4rTKo7Vx5DQ",
   authDomain: "noor-app-8b72e.firebaseapp.com",
@@ -115,14 +114,9 @@ const firebaseConfig = {
   appId: "1:857905665745:web:b640a80a49bd2fa08497f0"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-/* =========================================================
-   APP LOGIC
-   ========================================================= */
 
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
@@ -185,11 +179,11 @@ const DEFAULT_LEVELS = [
       { type:'text', text:'1) Shahadah — declaring that there is no god but Allah and Muhammad ﷺ is His Messenger.\n2) Salah — the five daily prayers.\n3) Zakat — giving charity to the poor.\n4) Sawm — fasting during the month of Ramadan.\n5) Hajj — the pilgrimage to Makkah once in a lifetime, if able.' }
     ],
     quiz: [
-      { q:'How many pillars of Islam are there?', options:['Three','Five','Seven','Ten'], answer:1 },
-      { q:'Which pillar comes first?', options:['Zakat','Salah','Shahadah','Sawm'], answer:2 },
-      { q:'Fasting in Ramadan is which pillar?', options:['Second','Third','Fourth','Fifth'], answer:2 },
-      { q:'What is the pillar of charity called?', options:['Sawm','Zakat','Hajj','Salah'], answer:1 },
-      { q:'Hajj is performed in which city?', options:['Madinah','Makkah','Jerusalem','Cairo'], answer:1 }
+      { q:'How many pillars of Islam are there?', options:['Three','Five','Seven','Ten'], answer:1, imageUrl:'' },
+      { q:'Which pillar comes first?', options:['Zakat','Salah','Shahadah','Sawm'], answer:2, imageUrl:'' },
+      { q:'Fasting in Ramadan is which pillar?', options:['Second','Third','Fourth','Fifth'], answer:2, imageUrl:'' },
+      { q:'What is the pillar of charity called?', options:['Sawm','Zakat','Hajj','Salah'], answer:1, imageUrl:'' },
+      { q:'Hajj is performed in which city?', options:['Madinah','Makkah','Jerusalem','Cairo'], answer:1, imageUrl:'' }
     ]
   },
   { id: 'lv2', title: 'Level 2 · The Pillars of Iman', items: [], quiz: [] },
@@ -391,6 +385,14 @@ function quizView(){
     </button>`;
   }).join('');
 
+  // Render image if it exists
+  let imageHtml = '';
+  if (q.imageUrl) {
+    imageHtml = `<div class="media" style="margin-bottom:16px"><img src="${esc(q.imageUrl)}" alt="Question image"></div>`;
+  } else if (q.blobId) {
+    imageHtml = `<div class="media" data-media="${q.blobId}" data-mediatype="image" style="margin-bottom:16px"><p class="muted small center" style="padding:20px;margin:0">Loading image…</p></div>`;
+  }
+
   return `
   <div class="topbar">
     <button class="ghost sm" data-act="quit-quiz">✕</button>
@@ -399,6 +401,7 @@ function quizView(){
   </div>
   <div class="card">
     <p class="muted small" style="margin-bottom:12px">Question ${qs.i+1}</p>
+    ${imageHtml}
     <h2 style="margin-bottom:18px">${esc(q.q)}</h2>
     ${opts}
     ${qs.checked
@@ -494,6 +497,10 @@ function questionEditor(q, qi){
       <button class="danger sm" data-act="del-q" data-qi="${qi}">✕</button>
     </div>
     <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}" placeholder="Question text">
+    
+    <label style="margin-top:10px">Optional Image URL (Recommended for students to see)</label>
+    <input data-field="q-image" data-qi="${qi}" value="${esc(q.imageUrl||'')}" placeholder="https://example.com/image.jpg">
+    
     <div class="muted small" style="margin:8px 0 4px">Select the correct answer:</div>
     ${opts}
   </div>`;
@@ -557,7 +564,7 @@ function render(){
 
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
 
-  if(state.screen === 'level') hydrateMedia();
+  if(state.screen === 'level' || state.screen === 'quiz') hydrateMedia();
 }
 
 async function hydrateMedia(){
@@ -732,7 +739,7 @@ document.addEventListener('click', async e => {
 
   if(act === 'add-q'){
     state.editing.quiz = state.editing.quiz || [];
-    state.editing.quiz.push({ q:'', options:['','','',''], answer:0 });
+    state.editing.quiz.push({ q:'', options:['','','',''], answer:0, imageUrl:'' });
     render(); return;
   }
 
@@ -762,6 +769,7 @@ document.addEventListener('input', e => {
   if(t.dataset.field === 'item-text'){ state.editing.items[Number(t.dataset.i)].text = t.value; return; }
   if(t.dataset.field === 'item-url'){ state.editing.items[Number(t.dataset.i)].url = t.value; return; }
   if(t.dataset.field === 'q-text'){ state.editing.quiz[Number(t.dataset.qi)].q = t.value; return; }
+  if(t.dataset.field === 'q-image'){ state.editing.quiz[Number(t.dataset.qi)].imageUrl = t.value; return; }
   if(t.dataset.field === 'q-opt'){ state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)] = t.value; return; }
 });
 
