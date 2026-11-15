@@ -208,7 +208,7 @@ function isUnlocked(index, userProgress){
 function flash(msg){
   state.flash = msg;
   render();
-  setTimeout(() => { state.flash = null; render(); }, 1800);
+  setTimeout(() => { state.flash = null; render(); }, 2800); /* Gave it a bit more time to read */
 }
 
 async function saveProgressToCloud(levelId, score, passed) {
@@ -294,7 +294,6 @@ function homeView(){
       </div>`;
   }).join('');
 
-  // Install App Button logic
   const installBtnHtml = state.isStandalone 
     ? `<button class="ghost sm" data-act="install-app" style="color:var(--muted);border-color:var(--line)">✅ Installed</button>`
     : `<button class="ghost sm" data-act="install-app" style="color:var(--warn);border-color:var(--warn)">📲 Install</button>`;
@@ -603,7 +602,7 @@ document.addEventListener('click', async e => {
     } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       flash('On iOS: Tap Share ⍗, then "Add to Home Screen"');
     } else {
-      flash('App is already installed or not supported by this browser.');
+      flash('To install, tap the 3 dots (⋮) in Chrome and choose "Install app".');
     }
     return;
   }
