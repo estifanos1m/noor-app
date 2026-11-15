@@ -7,6 +7,8 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // This handler must not be empty for WebAPK installation.
+  // A simple cache‑first strategy is enough.
   e.respondWith(
     caches.match(e.request).then((cached) => {
       return cached || fetch(e.request);
