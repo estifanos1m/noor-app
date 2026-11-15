@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b3d3b">
+<title>Noor — Islamic Learning</title>
+<style>
+  :root{
+    --bg:#0b1f1e; --bg2:#0e2b29; --card:#123634; --card2:#17423f;
+    --line:#1f5350; --txt:#e8f6f3; --muted:#8fb8b2;
+    --accent:#2ee6a8; --accent2:#12b886; --warn:#ffb84d; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#14504b 0%,var(--bg) 55%);
+    color:var(--txt); min-height:100dvh;
+  }
+  #app{max-width:560px;margin:0 auto;padding:18px 16px 90px}
+  h1,h2,h3{margin:0 0 6px}
+  h1{font-size:26px}
+  h2{font-size:20px}
+  h3{font-size:16px}
+  p{margin:0 0 10px;line-height:1.5}
+  .muted{color:var(--muted);font-size:14px}
+  .small{font-size:12px}
+  .center{text-align:center}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+  .row{display:flex;align-items:center;gap:10px}
+  .between{justify-content:space-between}
+  .wrap{flex-wrap:wrap}
+  input,textarea,select{
+    width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card2);color:var(--txt);font-size:15px;font-family:inherit;margin:6px 0 12px;
+  }
+  input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--accent);flex:0 0 auto}
+  input[type=file]{padding:8px;font-size:13px}
+  textarea{min-height:90px;resize:vertical}
+  label{font-size:13px;color:var(--muted);display:block}
+  button{
+    font-family:inherit;font-size:15px;font-weight:600;border:0;border-radius:14px;
+    padding:13px 18px;background:var(--accent);color:#052522;cursor:pointer;transition:.15s;
+  }
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--line)}
+  button.sm{padding:7px 12px;font-size:13px;border-radius:10px}
+  button.big{width:100%;padding:16px;font-size:17px;margin-top:6px}
+  button.danger{background:transparent;color:var(--bad);border:1.5px solid #4a2626}
+  .tabs{display:flex;gap:8px;background:var(--card2);padding:5px;border-radius:14px;margin-bottom:16px}
+  .tabs button{flex:1;background:transparent;color:var(--muted);padding:10px}
+  .tabs button.on{background:var(--accent);color:#052522}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .topbar h2{margin:0;flex:1}
+  .level{
+    display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
+    border-radius:18px;padding:14px;margin-bottom:12px;cursor:pointer;transition:.15s;
+  }
+  .level:active{transform:scale(.985)}
+  .level.locked{opacity:.5;cursor:not-allowed}
+  .lv-num{
+    width:48px;height:48px;flex:0 0 48px;border-radius:50%;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#052522;font-weight:800;font-size:18px;
+  }
+  .level.locked .lv-num{background:#2a4a48;color:var(--muted)}
+  .level .meta{flex:1;min-width:0}
+  .level .meta p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+  .badge{font-size:20px}
+  .media{margin:10px 0;border-radius:14px;overflow:hidden;background:#000}
+  .media iframe,.media video,.media img{width:100%;display:block;border:0}
+  .media iframe{aspect-ratio:16/9;height:auto}
+  .media video{max-height:60vh}
+  .media audio{width:100%;background:var(--card2)}
+  .lesson-text{background:var(--card2);border-left:3px solid var(--accent);padding:12px 14px;border-radius:0 12px 12px 0}
+  .opt{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card2);
+    border:1.5px solid var(--line);color:var(--txt);border-radius:14px;padding:14px;margin-bottom:10px;font-weight:500;
+  }
+  .opt.picked{border-color:var(--accent);background:#164a44}
+  .opt.right{border-color:var(--accent);background:#0f4a35;color:#b6ffe4}
+  .opt.wrong{border-color:var(--bad);background:#4a1f1f;color:#ffd0d0}
+  .opt .key{width:26px;height:26px;flex:0 0 26px;border-radius:8px;background:#0d2b29;display:grid;place-items:center;font-size:13px;color:var(--muted)}
+  .progress{height:8px;background:#0d2b29;border-radius:99px;overflow:hidden;margin:8px 0 14px}
+  .progress > div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:.4s}
+  .chip{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);background:#0d2b29;padding:4px 9px;border-radius:99px}
+  .edit-box{border:1px dashed var(--line);border-radius:14px;padding:12px;margin:10px 0}
+  .edit-box input,.edit-box textarea{margin:6px 0}
+  .feedback{padding:14px;border-radius:14px;margin-bottom:14px;font-weight:600}
+  .feedback.ok{background:#0f4a35;color:#b6ffe4}
+  .feedback.no{background:#4a1f1f;color:#ffd0d0}
+  .flash{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--accent);color:#052522;
+    padding:12px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:99}
+  .hero{text-align:center;padding:30px 0 10px}
+  .hero .logo{font-size:56px;line-height:1}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* =========================================================
+   NOOR — Islamic Learning App
+   Single-file app. All data is stored on the device.
+   ========================================================= */
+
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+const K_USERS   = 'noor_users_v1';
+const K_LEVELS  = 'noor_levels_v1';
+const K_SESSION = 'noor_session_v1';
+const K_SETTINGS= 'noor_settings_v1';
+
+const mediaDB = {
+  _db: null,
+  open(){
+    return new Promise((res, rej) => {
+      if(this._db) return res();
+      const r = indexedDB.open('noor-media', 1);
+      r.onupgradeneeded = e => {
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains('files')) db.createObjectStore('files');
+      };
+      r.onsuccess = e => { this._db = e.target.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async put(key, blob){
+    await this.open();
+    return new Promise((res, rej) => {
+      const tx = this._db.transaction('files', 'readwrite');
+      tx.objectStore('files').put(blob, key);
+      tx.oncomplete = () => res(key);
+      tx.onerror = () => rej(tx.error);
+    });
+  },
+  async get(key){
+    await this.open();
+    return new Promise((res, rej) => {
+      const tx = this._db.transaction('files', 'readonly');
+      const rq = tx.objectStore('files').get(key);
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+  },
+  async del(key){
+    await this.open();
+    return new Promise(res => {
+      const tx = this._db.transaction('files', 'readwrite');
+      tx.objectStore('files').delete(key);
+      tx.oncomplete = res;
+    });
+  }
+};
+
+const urlCache = new Map();
+async function urlFor(key){
+  if(urlCache.has(key)) return urlCache.get(key);
+  const blob = await mediaDB.get(key);
+  if(!blob) return '';
+  const u = URL.createObjectURL(blob);
+  urlCache.set(key, u);
+  return u;
+}
+
+const DEFAULT_LEVELS = [
+  {
+    id: 'lv1',
+    title: 'Level 1 · The Five Pillars of Islam',
+    items: [
+      { type:'text', text:'Islam is built upon five pillars. Every Muslim learns them and lives by them. In this level you will learn what they are and what each one means.' },
+      { type:'text', text:'1) Shahadah — declaring that there is no god but Allah and Muhammad ﷺ is His Messenger.\n2) Salah — the five daily prayers.\n3) Zakat — giving charity to the poor.\n4) Sawm — fasting during the month of Ramadan.\n5) Hajj — the pilgrimage to Makkah once in a lifetime, if able.' }
+    ],
+    quiz: [
+      { q:'How many pillars of Islam are there?', options:['Three','Five','Seven','Ten'], answer:1 },
+      { q:'Which pillar comes first?', options:['Zakat','Salah','Shahadah','Sawm'], answer:2 },
+      { q:'Fasting in Ramadan is which pillar?', options:['Second','Third','Fourth','Fifth'], answer:2 },
+      { q:'What is the pillar of charity called?', options:['Sawm','Zakat','Hajj','Salah'], answer:1 },
+      { q:'Hajj is performed in which city?', options:['Madinah','Makkah','Jerusalem','Cairo'], answer:1 }
+    ]
+  },
+  { id: 'lv2', title: 'Level 2 · The Pillars of Iman', items: [], quiz: [] },
+  { id: 'lv3', title: 'Level 3 · The Life of the Prophet ﷺ', items: [], quiz: [] }
+];
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function ytId(u){
+  const m = String(u||'').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+async function hashPass(str){
+  if(window.crypto && crypto.subtle){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
+  return 'f' + Math.abs(h).toString(16);
+}
+
+let state = {
+  screen: 'auth',
+  authMode: 'signin',
+  username: null,
+  levelId: null,
+  quiz: null,
+  teacherUnlocked: false,
+  editing: null,
+  flash: null
+};
+
+const getLevels   = () => store.get(K_LEVELS, DEFAULT_LEVELS);
+const setLevels   = l  => store.set(K_LEVELS, l);
+const getSettings = () => store.get(K_SETTINGS, { pin:'1234', passMark:80 });
+const setSettings = s  => store.set(K_SETTINGS, s);
+const getUsers    = () => store.get(K_USERS, {});
+const setUsers    = u  => store.set(K_USERS, u);
+const getUser     = () => getUsers()[state.username] || null;
+
+function saveUser(user){
+  const all = getUsers();
+  all[state.username] = user;
+  setUsers(all);
+}
+
+function getLevel(id){ return getLevels().find(l => l.id === id); }
+
+function isUnlocked(index, user){
+  if(index === 0) return true;
+  const levels = getLevels();
+  const prev = levels[index-1];
+  return !!(user && user.progress && user.progress[prev.id] && user.progress[prev.id].passed);
+}
+
+function flash(msg){
+  state.flash = msg;
+  render();
+  setTimeout(() => { state.flash = null; render(); }, 1800);
+}
+
+function authView(){
+  return `
+  <div class="hero">
+    <div class="logo">🕌</div>
+    <h1>Noor</h1>
+    <p class="muted">Learn · Level up · Grow</p>
+  </div>
+  <div class="card">
+    <div class="tabs">
+      <button data-act="auth-mode" data-mode="signin" class="${state.authMode==='signin'?'on':''}">Sign in</button>
+      <button data-act="auth-mode" data-mode="signup" class="${state.authMode==='signup'?'on':''}">Create account</button>
+    </div>
+    <label>Username</label>
+    <input id="auth-user" autocomplete="username" placeholder="e.g. ahmad" value="">
+    <label>Password</label>
+    <input id="auth-pass" type="password" autocomplete="current-password" placeholder="At least 4 characters">
+    ${state.authMode==='signup' ? `
+      <label>Confirm password</label>
+      <input id="auth-pass2" type="password" placeholder="Repeat password">` : ''}
+    <button class="big" data-act="auth-submit">
+      ${state.authMode==='signin' ? 'Sign in' : 'Create my account'}
+    </button>
+    <p class="muted small center" style="margin-top:14px">
+      Your progress is saved on this device.
+    </p>
+  </div>`;
+}
+
+function homeView(){
+  const user = getUser();
+  const levels = getLevels();
+  const passed = levels.filter(l => user.progress?.[l.id]?.passed).length;
+  const pct = Math.round((passed / Math.max(levels.length,1)) * 100);
+
+  const cards = levels.map((lv, i) => {
+    const unlocked = isUnlocked(i, user);
+    const prog = user.progress?.[lv.id];
+    const status = prog?.passed
+      ? `Passed · ${prog.score}%`
+      : unlocked ? (lv.quiz?.length ? 'Ready to start' : 'No test yet') : 'Locked';
+    return `
+      <div class="level ${unlocked?'':'locked'}" ${unlocked?`data-act="open-level" data-id="${lv.id}"`:''}>
+        <div class="lv-num">${i+1}</div>
+        <div class="meta">
+          <h3>${esc(lv.title)}</h3>
+          <p>${status}</p>
+        </div>
+        <div class="badge">${prog?.passed ? '✅' : unlocked ? '▶️' : '🔒'}</div>
+      </div>`;
+  }).join('');
+
+  return `
+  <div class="topbar">
+    <div style="flex:1">
+      <p class="muted small" style="margin:0">Assalamu alaykum</p>
+      <h2 style="margin:0">${esc(state.username)}</h2>
+    </div>
+    <button class="ghost sm" data-act="teacher-open">👩‍🏫 Teacher</button>
+    <button class="ghost sm" data-act="signout">Exit</button>
+  </div>
+
+  <div class="card">
+    <div class="row between">
+      <strong>Your progress</strong>
+      <span class="muted small">${passed} / ${levels.length} levels</span>
+    </div>
+    <div class="progress"><div style="width:${pct}%"></div></div>
+  </div>
+
+  ${cards}`;
+}
+
+function levelView(){
+  const lv = getLevel(state.levelId);
+  if(!lv) return `<p>Level not found.</p>`;
+
+  const items = (lv.items || []).map(it => {
+    if(it.type === 'text') return `<p class="lesson-text">${esc(it.text).replace(/\n/g,'<br>')}</p>`;
+    if(it.url){
+      if(it.type === 'video'){
+        const id = ytId(it.url);
+        if(id) return `<div class="media"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen allow="accelerometer; encrypted-media; picture-in-picture"></iframe></div>`;
+        return `<div class="media"><video controls src="${esc(it.url)}"></video></div>`;
+      }
+      if(it.type === 'image') return `<div class="media"><img src="${esc(it.url)}" alt=""></div>`;
+      if(it.type === 'audio') return `<div class="media"><audio controls src="${esc(it.url)}"></audio></div>`;
+    }
+    if(it.blobId) return `<div class="media" data-media="${it.blobId}" data-mediatype="${it.type}"><p class="muted small center" style="padding:20px;margin:0">Loading…</p></div>`;
+    return '';
+  }).join('');
+
+  const hasQuiz = lv.quiz && lv.quiz.length > 0;
+  const alreadyPassed = getUser()?.progress?.[lv.id]?.passed;
+
+  return `
+  <div class="topbar">
+    <button class="ghost sm" data-act="go-home">← Back</button>
+  </div>
+  <h2>${esc(lv.title)}</h2>
+  <div class="card">
+    ${items || '<p class="muted">No content in this level yet. Ask your teacher to add it.</p>'}
+  </div>
+  ${hasQuiz
+    ? `<button class="big" data-act="start-quiz">${alreadyPassed ? 'Retake the test' : 'Start the test'}</button>
+       <p class="muted small center" style="margin-top:10px">You need ${getSettings().passMark}% to unlock the next level.</p>`
+    : `<div class="card center muted">No test has been created for this level yet.</div>`}
+  `;
+}
+
+function quizView(){
+  const lv = getLevel(state.levelId);
+  const qs = state.quiz;
+  const total = lv.quiz.length;
+
+  if(qs.done){
+    const pct = Math.round((qs.correct / total) * 100);
+    const pass = pct >= getSettings().passMark;
+    const idx = getLevels().findIndex(l => l.id === lv.id);
+    const next = getLevels()[idx + 1];
+    return `
+      <div class="card center">
+        <div style="font-size:56px">${pass ? '🎉' : '📚'}</div>
+        <h2>${pass ? 'Level complete!' : 'Almost there!'}</h2>
+        <p class="muted">You scored</p>
+        <div style="font-size:44px;font-weight:800;color:${pass?'var(--accent)':'var(--warn)'}">${pct}%</div>
+        <p class="muted small">${qs.correct} of ${total} correct · pass mark ${getSettings().passMark}%</p>
+        ${pass
+          ? (next ? `<button class="big" data-act="open-level" data-id="${next.id}">Continue to next level →</button>` : '')
+          : `<p class="muted" style="margin-top:12px">Review the lesson and try again. You can do it!</p>`}
+        <button class="big ghost" data-act="retry-quiz">${pass ? 'Retake test' : 'Try again'}</button>
+        <button class="big ghost" data-act="go-home">Back to levels</button>
+      </div>`;
+  }
+
+  const q = lv.quiz[qs.i];
+  const letters = ['A','B','C','D','E','F'];
+
+  const opts = q.options.map((o, i) => {
+    let cls = 'opt';
+    if(qs.checked){
+      if(i === q.answer) cls += ' right';
+      else if(i === qs.picked) cls += ' wrong';
+    } else if(i === qs.picked) cls += ' picked';
+    return `<button class="${cls}" data-act="pick" data-i="${i}">
+      <span class="key">${letters[i]}</span><span>${esc(o)}</span>
+    </button>`;
+  }).join('');
+
+  return `
+  <div class="topbar">
+    <button class="ghost sm" data-act="quit-quiz">✕</button>
+    <div class="progress" style="flex:1;margin:0"><div style="width:${((qs.i)/total)*100}%"></div></div>
+    <span class="muted small">${qs.i+1}/${total}</span>
+  </div>
+  <div class="card">
+    <p class="muted small" style="margin-bottom:12px">Question ${qs.i+1}</p>
+    <h2 style="margin-bottom:18px">${esc(q.q)}</h2>
+    ${opts}
+    ${qs.checked
+      ? `<div class="feedback ${qs.picked === q.answer ? 'ok' : 'no'}">
+           ${qs.picked === q.answer ? '✅ Correct — mashaAllah!' : '❌ Not quite. Correct answer: ' + esc(q.options[q.answer])}
+         </div>
+         <button class="big" data-act="quiz-continue">Continue</button>`
+      : `<button class="big" data-act="quiz-check" ${qs.picked===null?'disabled':''}>Check answer</button>`}
+  </div>`;
+}
+
+function teacherGateView(){
+  return `
+  <div class="topbar"><button class="ghost sm" data-act="go-home">← Back</button></div>
+  <div class="card">
+    <h2>Teacher access</h2>
+    <p class="muted">Enter the teacher PIN to add lessons and tests.</p>
+    <input id="pin-input" type="password" inputmode="numeric" placeholder="PIN (default 1234)">
+    <button class="big" data-act="pin-check">Unlock</button>
+  </div>`;
+}
+
+function teacherView(){
+  const levels = getLevels();
+  const s = getSettings();
+  const rows = levels.map((lv, i) => `
+    <div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="flex:1;min-width:0">
+        <strong style="font-size:14px">${i+1}. ${esc(lv.title)}</strong>
+        <div class="muted small">${(lv.items||[]).length} content item(s) · ${(lv.quiz||[]).length} question(s)</div>
+      </div>
+      <button class="ghost sm" data-act="edit-level" data-id="${lv.id}">Edit</button>
+      <button class="danger sm" data-act="delete-level" data-id="${lv.id}">🗑</button>
+    </div>`).join('');
+
+  return `
+  <div class="topbar">
+    <button class="ghost sm" data-act="go-home">← Back</button>
+    <h2 style="margin:0">Teacher panel</h2>
+  </div>
+
+  <div class="card">
+    <div class="row between"><strong>Levels</strong>
+      <button class="ghost sm" data-act="new-level">+ New level</button>
+    </div>
+    ${rows}
+  </div>
+
+  <div class="card">
+    <strong>Settings</strong>
+    <label style="margin-top:10px">Pass mark (%)</label>
+    <input id="set-pass" type="number" min="10" max="100" value="${s.passMark}">
+    <label>Teacher PIN</label>
+    <input id="set-pin" type="text" inputmode="numeric" value="${esc(s.pin)}">
+    <button class="big ghost" data-act="save-settings">Save settings</button>
+  </div>`;
+}
+
+function itemEditor(it, i){
+  const t = it.type;
+  let inner = '';
+  if(t === 'text'){
+    inner = `<textarea data-field="item-text" data-i="${i}" placeholder="Write the lesson text…">${esc(it.text||'')}</textarea>`;
+  } else {
+    const hint = t === 'video' ? 'YouTube link or video URL' : t === 'image' ? 'Image URL' : 'Audio URL';
+    inner = `
+      <input data-field="item-url" data-i="${i}" placeholder="${hint}" value="${esc(it.url||'')}">
+      <div class="muted small" style="margin-bottom:6px">
+        ${it.blobId ? '📎 Uploaded: ' + esc(it.name || 'file') : 'or upload a file from this device:'}
+      </div>
+      <input type="file" data-upload="${t}" data-i="${i}"
+             accept="${t==='video'?'video/*':t==='image'?'image/*':'audio/*'}">`;
+  }
+  return `<div class="edit-box">
+    <div class="row between" style="margin-bottom:6px">
+      <span class="chip">${t}</span>
+      <button class="danger sm" data-act="del-item" data-i="${i}">✕</button>
+    </div>
+    ${inner}
+  </div>`;
+}
+
+function questionEditor(q, qi){
+  const opts = q.options.map((o, oi) => `
+    <div class="row" style="margin-bottom:4px">
+      <input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}>
+      <input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o)}" placeholder="Option ${oi+1}">
+    </div>`).join('');
+
+  return `<div class="edit-box">
+    <div class="row between" style="margin-bottom:6px">
+      <span class="chip">Question ${qi+1}</span>
+      <button class="danger sm" data-act="del-q" data-qi="${qi}">✕</button>
+    </div>
+    <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}" placeholder="Question text">
+    <div class="muted small" style="margin:8px 0 4px">Select the correct answer:</div>
+    ${opts}
+  </div>`;
+}
+
+function editView(){
+  const lv = state.editing;
+  return `
+  <div class="topbar">
+    <button class="ghost sm" data-act="back-teacher">← Back</button>
+    <h2 style="margin:0">Edit level</h2>
+  </div>
+
+  <div class="card">
+    <label>Level title</label>
+    <input data-field="title" value="${esc(lv.title)}">
+
+    <label>Lesson content</label>
+    ${(lv.items||[]).map(itemEditor).join('') || '<p class="muted small">No content yet — add something below.</p>'}
+    <div class="row wrap" style="margin-top:8px">
+      <button class="ghost sm" data-act="add-item" data-type="text">+ Text</button>
+      <button class="ghost sm" data-act="add-item" data-type="video">+ Video</button>
+      <button class="ghost sm" data-act="add-item" data-type="image">+ Image</button>
+      <button class="ghost sm" data-act="add-item" data-type="audio">+ Audio</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Test questions</label>
+    ${(lv.quiz||[]).map(questionEditor).join('') || '<p class="muted small">No questions yet.</p>'}
+    <button class="ghost sm" data-act="add-q" style="margin-top:8px">+ Add question</button>
+  </div>
+
+  <button class="big" data-act="save-level">💾 Save level</button>
+  <p class="muted small center" style="margin-top:10px">
+    Students must score ${getSettings().passMark}% on this test to unlock the next level.
+  </p>`;
+}
+
+function render(){
+  const app = document.getElementById('app');
+  let html = '';
+
+  if(!state.username){
+    html = authView();
+  } else if(state.screen === 'home'){
+    html = homeView();
+  } else if(state.screen === 'level'){
+    html = levelView();
+  } else if(state.screen === 'quiz'){
+    html = quizView();
+  } else if(state.screen === 'teacher-gate'){
+    html = teacherGateView();
+  } else if(state.screen === 'teacher'){
+    html = teacherView();
+  } else if(state.screen === 'edit'){
+    html = editView();
+  }
+
+  app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
+
+  if(state.screen === 'level') hydrateMedia();
+}
+
+async function hydrateMedia(){
+  document.querySelectorAll('[data-media]').forEach(async node => {
+    const url = await urlFor(node.dataset.media);
+    if(!url) return;
+    const t = node.dataset.mediatype;
+    if(t === 'image') node.innerHTML = `<img src="${url}" alt="">`;
+    else if(t === 'audio') node.innerHTML = `<audio controls src="${url}"></audio>`;
+    else node.innerHTML = `<video controls src="${url}"></video>`;
+  });
+}
+
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.dataset.act;
+
+  if(act === 'auth-mode'){
+    state.authMode = el.dataset.mode;
+    render(); return;
+  }
+
+  if(act === 'auth-submit'){
+    const u = (document.getElementById('auth-user')?.value || '').trim().toLowerCase();
+    const p = document.getElementById('auth-pass')?.value || '';
+    if(u.length < 2) return flash('Username must be at least 2 characters');
+    if(p.length < 4) return flash('Password must be at least 4 characters');
+
+    const users = getUsers();
+
+    if(state.authMode === 'signup'){
+      const p2 = document.getElementById('auth-pass2')?.value || '';
+      if(p !== p2) return flash('Passwords do not match');
+      if(users[u]) return flash('That username is already taken');
+      users[u] = { name: u, pass: await hashPass(p), progress: {}, createdAt: Date.now() };
+      setUsers(users);
+      state.username = u;
+      store.set(K_SESSION, u);
+      state.screen = 'home';
+      flash('Account created — welcome!');
+      return;
+    } else {
+      const user = users[u];
+      if(!user) return flash('No account with that username');
+      if(user.pass !== await hashPass(p)) return flash('Wrong password');
+      state.username = u;
+      store.set(K_SESSION, u);
+      state.screen = 'home';
+      render();
+      return;
+    }
+  }
+
+  if(act === 'signout'){
+    state.username = null;
+    state.screen = 'auth';
+    localStorage.removeItem(K_SESSION);
+    render(); return;
+  }
+
+  if(act === 'go-home'){ state.screen = 'home'; render(); return; }
+
+  if(act === 'open-level'){
+    state.levelId = el.dataset.id;
+    state.screen = 'level';
+    render(); return;
+  }
+
+  if(act === 'start-quiz' || act === 'retry-quiz'){
+    state.quiz = { i:0, picked:null, checked:false, correct:0, done:false };
+    state.screen = 'quiz';
+    render(); return;
+  }
+
+  if(act === 'quit-quiz'){ state.screen = 'level'; render(); return; }
+
+  if(act === 'pick'){
+    if(state.quiz.checked) return;
+    state.quiz.picked = Number(el.dataset.i);
+    render(); return;
+  }
+
+  if(act === 'quiz-check'){
+    const lv = getLevel(state.levelId);
+    if(state.quiz.picked === null) return;
+    state.quiz.checked = true;
+    if(state.quiz.picked === lv.quiz[state.quiz.i].answer) state.quiz.correct++;
+    render(); return;
+  }
+
+  if(act === 'quiz-continue'){
+    const lv = getLevel(state.levelId);
+    const qs = state.quiz;
+    if(qs.i + 1 < lv.quiz.length){
+      qs.i++; qs.picked = null; qs.checked = false;
+      render(); return;
+    }
+    qs.done = true;
+    const pct = Math.round((qs.correct / lv.quiz.length) * 100);
+    if(pct >= getSettings().passMark){
+      const user = getUser();
+      user.progress = user.progress || {};
+      user.progress[lv.id] = { passed:true, score:pct, date:Date.now() };
+      saveUser(user);
+    }
+    render(); return;
+  }
+
+  if(act === 'teacher-open'){
+    if(state.teacherUnlocked){ state.screen = 'teacher'; render(); }
+    else { state.screen = 'teacher-gate'; render(); }
+    return;
+  }
+
+  if(act === 'pin-check'){
+    const pin = document.getElementById('pin-input')?.value || '';
+    if(pin === getSettings().pin){
+      state.teacherUnlocked = true;
+      state.screen = 'teacher';
+      render();
+    } else flash('Wrong PIN');
+    return;
+  }
+
+  if(act === 'new-level'){
+    const levels = getLevels();
+    const id = 'lv' + Date.now();
+    levels.push({ id, title: 'New level', items: [], quiz: [] });
+    setLevels(levels);
+    state.editing = JSON.parse(JSON.stringify(levels[levels.length-1]));
+    state.screen = 'edit';
+    render(); return;
+  }
+
+  if(act === 'edit-level'){
+    const lv = getLevels().find(l => l.id === el.dataset.id);
+    state.editing = JSON.parse(JSON.stringify(lv));
+    state.screen = 'edit';
+    render(); return;
+  }
+
+  if(act === 'delete-level'){
+    if(!confirm('Delete this level and all its content?')) return;
+    const levels = getLevels().filter(l => l.id !== el.dataset.id);
+    setLevels(levels);
+    render(); return;
+  }
+
+  if(act === 'save-settings'){
+    const s = getSettings();
+    s.passMark = Math.min(100, Math.max(10, Number(document.getElementById('set-pass').value) || 80));
+    const pin = (document.getElementById('set-pin').value || '').trim();
+    if(pin) s.pin = pin;
+    setSettings(s);
+    flash('Settings saved');
+    return;
+  }
+
+  if(act === 'back-teacher'){ state.screen = 'teacher'; render(); return; }
+
+  if(act === 'add-item'){
+    const t = el.dataset.type;
+    state.editing.items = state.editing.items || [];
+    state.editing.items.push(t === 'text' ? { type:'text', text:'' } : { type:t, url:'' });
+    render(); return;
+  }
+
+  if(act === 'del-item'){
+    state.editing.items.splice(Number(el.dataset.i), 1);
+    render(); return;
+  }
+
+  if(act === 'add-q'){
+    state.editing.quiz = state.editing.quiz || [];
+    state.editing.quiz.push({ q:'', options:['','','',''], answer:0 });
+    render(); return;
+  }
+
+  if(act === 'del-q'){
+    state.editing.quiz.splice(Number(el.dataset.qi), 1);
+    render(); return;
+  }
+
+  if(act === 'save-level'){
+    const lv = state.editing;
+    if(!lv.title.trim()) return flash('Please give the level a title');
+    lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.some(o => o.trim()));
+    const levels = getLevels();
+    const idx = levels.findIndex(l => l.id === lv.id);
+    if(idx >= 0) levels[idx] = lv; else levels.push(lv);
+    setLevels(levels);
+    state.screen = 'teacher';
+    flash('Level saved ✓');
+    return;
+  }
+});
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if(!state.editing) return;
+  if(t.dataset.field === 'title'){ state.editing.title = t.value; return; }
+  if(t.dataset.field === 'item-text'){ state.editing.items[Number(t.dataset.i)].text = t.value; return; }
+  if(t.dataset.field === 'item-url'){ state.editing.items[Number(t.dataset.i)].url = t.value; return; }
+  if(t.dataset.field === 'q-text'){ state.editing.quiz[Number(t.dataset.qi)].q = t.value; return; }
+  if(t.dataset.field === 'q-opt'){ state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)] = t.value; return; }
+});
+
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if(t.dataset.answer !== undefined && state.editing){
+    state.editing.quiz[Number(t.dataset.answer)].answer = Number(t.dataset.oi);
+    return;
+  }
+  if(t.dataset.upload && state.editing){
+    const file = t.files && t.files[0];
+    if(!file) return;
+    if(file.size > 60 * 1024 * 1024){
+      alert('That file is larger than 60 MB. Please compress it or use a link instead.');
+      return;
+    }
+    const key = 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+    await mediaDB.put(key, file);
+    const item = state.editing.items[Number(t.dataset.i)];
+    item.blobId = key;
+    item.name = file.name;
+    item.url = '';
+    render();
+    flash('File uploaded ✓');
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !state.username){
+    document.querySelector('[data-act="auth-submit"]')?.click();
+  }
+});
+
+(function init(){
+  if(store.get(K_LEVELS, null) === null) setLevels(DEFAULT_LEVELS);
+  if(store.get(K_SETTINGS, null) === null) setSettings({ pin:'1234', passMark:80 });
+  const sess = store.get(K_SESSION, null);
+  if(sess && getUsers()[sess]){
+    state.username = sess;
+    state.screen = 'home';
+  }
+  render();
+})();
+</script>
+</body>
+</html>
