@@ -141,6 +141,7 @@ const CLOUDINARY_CLOUD_NAME = 'bzk8vaxp';
 const CLOUDINARY_UPLOAD_PRESET = 'noor_uploads';
 const K_SETTINGS = 'noor_settings_v1';
 const TEACHER_EMAIL = 'yasinmubarek75@gmail.com';
+const PAYMENT_CYCLE_DAYS = 60; // UPDATED TO 60 DAYS
 
 const DEFAULT_LEVELS = [
   {
@@ -152,7 +153,6 @@ const DEFAULT_LEVELS = [
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-// Convert URLs in text to clickable links
 function linkify(text) {
   if (!text) return '';
   const escaped = esc(text);
@@ -233,7 +233,8 @@ async function checkSecurityAndPayments(user) {
       state.paymentStatus = userData.paymentStatus || 'active';
 
       const days = getDaysSince(userData.joinedDate);
-      if (user.email !== TEACHER_EMAIL && days >= 30 && state.paymentStatus !== 'active') {
+      // UPDATED TO 60 DAYS
+      if (user.email !== TEACHER_EMAIL && days >= PAYMENT_CYCLE_DAYS && state.paymentStatus !== 'active') {
         const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
         if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'Please contact the teacher.';
         state.isPaymentBlocked = true;
@@ -269,8 +270,9 @@ function getDaysSince(dateStr) {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
+// UPDATED TO 60 DAYS
 function isDue(dateStr, status) {
-  return getDaysSince(dateStr) >= 30 && status !== 'active';
+  return getDaysSince(dateStr) >= PAYMENT_CYCLE_DAYS && status !== 'active';
 }
 
 // --- VIEWS ---
@@ -429,7 +431,7 @@ function manageStudentsView(){
   const renderUserRow = (u, isBlocked) => {
     const days = getDaysSince(u.joinedDate);
     const status = u.paymentStatus || 'active';
-    const isOverdue = days >= 30;
+    const isOverdue = days >= PAYMENT_CYCLE_DAYS; // UPDATED TO 60 DAYS
     
     let statusBadge = '';
     if (isBlocked) {
@@ -466,7 +468,7 @@ function manageStudentsView(){
   
   <div class="card">
     <h3 style="color:var(--accent);margin-bottom:10px;">Active Students</h3>
-    <p class="muted small" style="margin-bottom:12px">If a student pays, tap <b>Approve & Renew</b> to reset their timer and unlock their app.</p>
+    <p class="muted small" style="margin-bottom:12px">If a student pays, tap <b>Approve & Renew</b> to reset their timer and unlock their app for another 60 days.</p>
     ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, false)).join('') : '<p class="muted">No active students.</p>'}
   </div>
 
@@ -500,7 +502,7 @@ function paymentBlockedView(){
         <p class="center muted" style="margin-bottom:24px;">You have marked this as paid. Please wait for the teacher to verify and unlock your account.</p>
       ` : `
         <h2 class="center" style="color:var(--bad);margin-bottom:10px;">App Locked</h2>
-        <p class="center muted" style="margin-bottom:16px;">Your 30-day subscription has ended (${days} days). Please pay to continue learning.</p>
+        <p class="center muted" style="margin-bottom:16px;">Your 60-day subscription has ended (${days} days). Please pay to continue learning.</p>
         
         <div style="background:var(--card2);border:1px dashed var(--accent);padding:16px;border-radius:12px;margin-bottom:24px;">
           <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">Payment Details</div>
@@ -642,7 +644,8 @@ document.addEventListener('click', async e => {
   if(act === 'renew-user') {
     if(state.username !== TEACHER_EMAIL) return;
     const targetUid = el.dataset.uid;
-    if(!confirm('Approve payment and unlock this student for 30 days?')) return;
+    // UPDATED TEXT TO 60 DAYS
+    if(!confirm('Approve payment and unlock this student for 60 days?')) return;
     try {
       await setDoc(doc(db, 'users', targetUid), { joinedDate: new Date().toISOString(), paymentStatus: 'active' }, { merge: true });
       flash('Student unlocked & renewed!');
