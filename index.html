@@ -185,7 +185,8 @@ function flash(msg){
 async function saveProgressToCloud(levelId, score, passed) {
   if(!state.uid) return;
   state.userProgress[levelId] = { passed, score, date: Date.now() };
-  await setDoc(doc(db, 'users', state.uid), { progress: state.userProgress }, { merge: true });
+  // Save email here too to make sure it's always in the database
+  await setDoc(doc(db, 'users', state.uid), { progress: state.userProgress, email: state.username }, { merge: true });
 }
 
 async function loadCloudLevels() {
@@ -238,7 +239,6 @@ async function fetchAllUsers() {
   } catch(e) { console.error(e); }
 }
 
-// Calculate days since joined
 function getDaysSince(dateStr) {
   if(!dateStr) return 0;
   const joined = new Date(dateStr);
@@ -247,7 +247,6 @@ function getDaysSince(dateStr) {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-// If 30 days or more, payment is due
 function isDue(dateStr) {
   return getDaysSince(dateStr) >= 30;
 }
@@ -386,17 +385,18 @@ function manageStudentsView(){
     const days = getDaysSince(u.joinedDate);
     const due = days >= 30;
     
-    // Display format
     const joinedStr = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : 'Unknown';
     const statusBadge = due 
       ? `<span style="color:var(--bad);font-size:12px;font-weight:bold">⚠️ PAYMENT DUE (${days} days)</span>`
       : `<span style="color:var(--accent);font-size:12px">Active (${days} days)</span>`;
 
+    const displayName = u.email ? u.email : "Unknown Student (No Email Saved)";
+
     return `
     <div style="padding:12px 0;border-bottom:1px solid var(--line)">
       <div class="row between" style="margin-bottom:6px;">
-        <strong style="font-size:13px;word-break:break-all">${esc(u.email)}</strong>
-        <button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button>
+        <strong style="font-size:14px;word-break:break-all;color:var(--txt)">${esc(displayName)}</strong>
+        <button class="danger sm" data-act="block-user" data-email="${esc(u.email || '')}">Block</button>
       </div>
       <div class="row between">
         <span class="muted small">Joined: ${joinedStr}</span>
@@ -500,6 +500,7 @@ document.addEventListener('click', async e => {
 
   if(act === 'block-user') {
     const email = el.dataset.email;
+    if(!email) return flash('Cannot block a user without an email.');
     if(!confirm(`Block ${email}?`)) return;
     try {
       const snap = await getDoc(doc(db, 'config', 'blocked'));
@@ -666,14 +667,22 @@ onAuthStateChanged(auth, async (user) => {
       const docRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(docRef);
       
-      // NEW: If user has no joinedDate, set it right now automatically
       if (docSnap.exists()) {
-        if (!docSnap.data().joinedDate) {
-          await setDoc(docRef, { joinedDate: new Date().toISOString() }, { merge: true });
+        let updates = {};
+        if (!docSnap.data().joinedDate) updates.joinedDate = new Date().toISOString();
+        if (!docSnap.data().email) updates.email = user.email;
+        
+        if (Object.keys(updates).length > 0) {
+          await setDoc(docRef, updates, { merge: true });
         }
         state.userProgress = docSnap.data().progress || {};
       } else {
-        await setDoc(docRef, { joinedDate: new Date().toISOString(), progress: {} });
+        // New user sign up
+        await setDoc(docRef, { 
+            joinedDate: new Date().toISOString(), 
+            email: user.email, 
+            progress: {} 
+        });
         state.userProgress = {};
       }
     } catch (e) { state.userProgress = {}; }
