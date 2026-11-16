@@ -167,7 +167,7 @@ let state = {
   screen: 'auth', authMode: 'signin', username: null, uid: null, userProgress: {},
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
-  allUsers: [], activeReminder: null, showReminder: false
+  allUsers: [], blockedEmails: [], activeReminder: null, showReminder: false
 };
 
 const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
@@ -185,7 +185,6 @@ function flash(msg){
 async function saveProgressToCloud(levelId, score, passed) {
   if(!state.uid) return;
   state.userProgress[levelId] = { passed, score, date: Date.now() };
-  // Save email here too to make sure it's always in the database
   await setDoc(doc(db, 'users', state.uid), { progress: state.userProgress, email: state.username }, { merge: true });
 }
 
@@ -229,7 +228,16 @@ async function checkSecurityAndReminders(user) {
 
 async function fetchAllUsers() {
   state.allUsers = [];
+  state.blockedEmails = [];
+  
   try {
+    // Get blocked list first
+    const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
+    if (blockSnap.exists()) {
+      state.blockedEmails = blockSnap.data().emails || [];
+    }
+
+    // Get all users
     const querySnapshot = await getDocs(collection(db, "users"));
     querySnapshot.forEach((doc) => {
       if(doc.id !== state.uid) {
@@ -348,7 +356,10 @@ function teacherGateView(){
 }
 
 function teacherView(){
-  const dueCount = state.allUsers.filter(u => isDue(u.joinedDate)).length;
+  // Only count due payments for ACTIVE students
+  const activeUsers = state.allUsers.filter(u => !state.blockedEmails.includes(u.email));
+  const dueCount = activeUsers.filter(u => isDue(u.joinedDate)).length;
+  
   const alertHtml = dueCount > 0 
     ? `<div class="alert-banner">⚠️ ${dueCount} student(s) need to pay!<button class="sm danger" data-act="manage-students" style="border:0;color:#fff;background:#000">View</button></div>` 
     : '';
@@ -381,35 +392,52 @@ function teacherView(){
 }
 
 function manageStudentsView(){
-  const rows = state.allUsers.map(u => {
-    const days = getDaysSince(u.joinedDate);
-    const due = days >= 30;
-    
-    const joinedStr = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : 'Unknown';
-    const statusBadge = due 
-      ? `<span style="color:var(--bad);font-size:12px;font-weight:bold">⚠️ PAYMENT DUE (${days} days)</span>`
-      : `<span style="color:var(--accent);font-size:12px">Active (${days} days)</span>`;
+  const activeUsers = state.allUsers.filter(u => !state.blockedEmails.includes(u.email));
+  const blockedUsers = state.allUsers.filter(u => state.blockedEmails.includes(u.email));
 
-    const displayName = u.email ? u.email : "Unknown Student (No Email Saved)";
+  const renderUserRow = (u, isBlocked) => {
+    const days = getDaysSince(u.joinedDate);
+    const due = days >= 30 && !isBlocked;
+    const joinedStr = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : 'Unknown';
+    const displayName = u.email ? u.email : "Unknown Student";
+
+    let statusBadge = '';
+    if (isBlocked) {
+      statusBadge = `<span style="color:var(--muted);font-size:12px">Blocked</span>`;
+    } else if (due) {
+      statusBadge = `<span style="color:var(--bad);font-size:12px;font-weight:bold">⚠️ PAYMENT DUE (${days} days)</span>`;
+    } else {
+      statusBadge = `<span style="color:var(--accent);font-size:12px">Active (${days} days)</span>`;
+    }
 
     return `
     <div style="padding:12px 0;border-bottom:1px solid var(--line)">
       <div class="row between" style="margin-bottom:6px;">
-        <strong style="font-size:14px;word-break:break-all;color:var(--txt)">${esc(displayName)}</strong>
-        <button class="danger sm" data-act="block-user" data-email="${esc(u.email || '')}">Block</button>
+        <strong style="font-size:14px;word-break:break-all;color:${isBlocked?'var(--muted)':'var(--txt)'}">${esc(displayName)}</strong>
+        ${isBlocked 
+          ? `<button class="ghost sm" data-act="unblock-user" data-email="${esc(u.email)}">Unblock</button>`
+          : `<button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button>`
+        }
       </div>
       <div class="row between">
         <span class="muted small">Joined: ${joinedStr}</span>
         ${statusBadge}
       </div>
     </div>`;
-  }).join('');
+  };
 
   return `
   <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Students</h2></div>
+  
   <div class="card">
-    <p class="muted small">The app automatically tracks when a student joins. After 30 days, they will show as <b style="color:var(--bad)">PAYMENT DUE</b> so you can block them if necessary.</p>
-    ${rows || '<p class="muted">No students found.</p>'}
+    <h3 style="color:var(--accent);margin-bottom:10px;">Active Students</h3>
+    <p class="muted small" style="margin-bottom:12px">After 30 days, they will show as <b style="color:var(--bad)">PAYMENT DUE</b>.</p>
+    ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, false)).join('') : '<p class="muted">No active students.</p>'}
+  </div>
+
+  <div class="card" style="border-color: #4a2626;">
+    <h3 style="color:var(--bad);margin-bottom:10px;">Blocked Students</h3>
+    ${blockedUsers.length ? blockedUsers.map(u => renderUserRow(u, true)).join('') : '<p class="muted">No blocked students.</p>'}
   </div>`;
 }
 
@@ -511,6 +539,21 @@ document.addEventListener('click', async e => {
       await fetchAllUsers();
       render();
     } catch(e) { flash('Error blocking user.'); }
+    return;
+  }
+
+  if(act === 'unblock-user') {
+    const email = el.dataset.email;
+    if(!confirm(`Unblock ${email}?`)) return;
+    try {
+      const snap = await getDoc(doc(db, 'config', 'blocked'));
+      let emails = snap.exists() ? (snap.data().emails || []) : [];
+      emails = emails.filter(e => e !== email);
+      await setDoc(doc(db, 'config', 'blocked'), { emails });
+      flash('User unblocked.');
+      await fetchAllUsers();
+      render();
+    } catch(e) { flash('Error unblocking user.'); }
     return;
   }
 
@@ -677,7 +720,6 @@ onAuthStateChanged(auth, async (user) => {
         }
         state.userProgress = docSnap.data().progress || {};
       } else {
-        // New user sign up
         await setDoc(docRef, { 
             joinedDate: new Date().toISOString(), 
             email: user.email, 
