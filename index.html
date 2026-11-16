@@ -139,6 +139,7 @@ const db = getFirestore(app);
 const CLOUDINARY_CLOUD_NAME = 'bzk8vaxp';
 const CLOUDINARY_UPLOAD_PRESET = 'noor_uploads';
 const K_SETTINGS = 'noor_settings_v1';
+const TEACHER_EMAIL = 'yasinmubarek75@gmail.com';
 
 const DEFAULT_LEVELS = [
   {
@@ -170,7 +171,6 @@ let state = {
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
-  // PAYMENT BLOCK STATE
   isPaymentBlocked: false, paymentStatus: 'active', userJoinedDate: null
 };
 
@@ -207,7 +207,6 @@ async function saveCloudLevels(levelsArray) {
 
 async function checkSecurityAndPayments(user) {
   try {
-    // 1. Check if manually blocked by teacher
     const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
     if (blockSnap.exists()) {
       const blockedEmails = blockSnap.data().emails || [];
@@ -218,7 +217,6 @@ async function checkSecurityAndPayments(user) {
       }
     }
 
-    // 2. Check Payment Due Date
     const userSnap = await getDoc(doc(db, 'users', user.uid));
     if (userSnap.exists()) {
       const userData = userSnap.data();
@@ -226,11 +224,10 @@ async function checkSecurityAndPayments(user) {
       state.paymentStatus = userData.paymentStatus || 'active';
 
       const days = getDaysSince(userData.joinedDate);
-      if (days >= 30 && state.paymentStatus !== 'active') {
-        // Fetch payment details to show them
+      // Teacher bypasses payment lock
+      if (user.email !== TEACHER_EMAIL && days >= 30 && state.paymentStatus !== 'active') {
         const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
         if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'Please contact the teacher.';
-        
         state.isPaymentBlocked = true;
       }
     }
@@ -302,11 +299,16 @@ function homeView(){
     ? `<button class="ghost sm" data-act="install-app" style="color:var(--muted);border-color:var(--line)">✅ Installed</button>`
     : `<button class="ghost sm" data-act="install-app" style="color:var(--warn);border-color:var(--warn)">📲 Install</button>`;
 
+  // Only show Teacher button if logged in as the Teacher
+  const teacherBtnHtml = state.username === TEACHER_EMAIL 
+    ? `<button class="ghost sm" data-act="teacher-open">👩‍🏫</button>` 
+    : '';
+
   return `
   <div class="topbar">
     <div style="flex:1;min-width:0"><p class="muted small" style="margin:0">Assalamu alaykum</p><h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2></div>
     ${installBtnHtml}
-    <button class="ghost sm" data-act="teacher-open">👩‍🏫</button>
+    ${teacherBtnHtml}
     <button class="ghost sm" data-act="signout">Exit</button>
   </div>
   <div class="card">
@@ -530,7 +532,11 @@ function editView(){
 function render(){
   const app = document.getElementById('app');
   
-  // HARD PAYMENT BLOCK OVERRIDE
+  // Security override: Force non-teachers out of teacher screens
+  if (state.username !== TEACHER_EMAIL && ['teacher', 'manage-students', 'manage-payment-details', 'edit'].includes(state.screen)) {
+    state.screen = 'home';
+  }
+
   if (state.isPaymentBlocked) {
     app.innerHTML = paymentBlockedView() + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
     return;
@@ -563,16 +569,19 @@ document.addEventListener('click', async e => {
   }
 
   if(act === 'manage-students') {
+    if(state.username !== TEACHER_EMAIL) return;
     await fetchAllUsers();
     state.screen = 'manage-students';
     render(); return;
   }
 
   if(act === 'manage-payment-details') {
+    if(state.username !== TEACHER_EMAIL) return;
     state.screen = 'manage-payment-details'; render(); return;
   }
 
   if(act === 'save-payment-details') {
+    if(state.username !== TEACHER_EMAIL) return;
     const txt = document.getElementById('pay-details').value.trim();
     await setDoc(doc(db, 'config', 'paymentDetails'), { text: txt });
     state.paymentDetails = txt;
@@ -581,13 +590,11 @@ document.addEventListener('click', async e => {
   }
 
   if(act === 'renew-user') {
+    if(state.username !== TEACHER_EMAIL) return;
     const targetUid = el.dataset.uid;
     if(!confirm('Approve payment and unlock this student for 30 days?')) return;
     try {
-      await setDoc(doc(db, 'users', targetUid), { 
-        joinedDate: new Date().toISOString(), 
-        paymentStatus: 'active' 
-      }, { merge: true });
+      await setDoc(doc(db, 'users', targetUid), { joinedDate: new Date().toISOString(), paymentStatus: 'active' }, { merge: true });
       flash('Student unlocked & renewed!');
       await fetchAllUsers();
       render();
@@ -596,6 +603,7 @@ document.addEventListener('click', async e => {
   }
 
   if(act === 'block-user') {
+    if(state.username !== TEACHER_EMAIL) return;
     const email = el.dataset.email;
     if(!email) return flash('Cannot block a user without an email.');
     if(!confirm(`Block ${email}?`)) return;
@@ -612,6 +620,7 @@ document.addEventListener('click', async e => {
   }
 
   if(act === 'unblock-user') {
+    if(state.username !== TEACHER_EMAIL) return;
     const email = el.dataset.email;
     if(!confirm(`Unblock ${email}?`)) return;
     try {
@@ -659,7 +668,10 @@ document.addEventListener('click', async e => {
 
   if(act === 'signout'){ await signOut(auth); state.teacherUnlocked = false; state.screen = 'auth'; state.isPaymentBlocked = false; return; }
   if(act === 'go-home'){ state.screen = 'home'; render(); return; }
-  if(act === 'back-teacher'){ await fetchAllUsers(); state.screen = 'teacher'; render(); return; }
+  if(act === 'back-teacher'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    await fetchAllUsers(); state.screen = 'teacher'; render(); return; 
+  }
   if(act === 'open-level'){ state.levelId = el.dataset.id; state.screen = 'level'; render(); return; }
   if(act === 'start-quiz' || act === 'retry-quiz'){ state.quiz = { i:0, picked:null, checked:false, correct:0, done:false }; state.screen = 'quiz'; render(); return; }
   if(act === 'quit-quiz'){ state.screen = 'level'; render(); return; }
@@ -675,6 +687,7 @@ document.addEventListener('click', async e => {
     if(pct >= getSettings().passMark) await saveProgressToCloud(lv.id, pct, true); render(); return;
   }
   if(act === 'teacher-open'){ 
+    if(state.username !== TEACHER_EMAIL) return flash('Access Denied');
     if(!state.teacherUnlocked){ state.screen = 'teacher-gate'; render(); return; }
     else { await fetchAllUsers(); state.screen = 'teacher'; render(); return; }
   }
@@ -683,18 +696,41 @@ document.addEventListener('click', async e => {
       state.teacherUnlocked = true; await fetchAllUsers(); state.screen = 'teacher'; render(); 
     } else flash('Wrong PIN'); return;
   }
-  if(act === 'new-level'){ state.editing = { id: 'lv'+Date.now(), title: 'New level', items: [], quiz: [] }; state.screen = 'edit'; render(); return; }
-  if(act === 'edit-level'){ state.editing = JSON.parse(JSON.stringify(state.levels.find(l => l.id === el.dataset.id))); state.screen = 'edit'; render(); return; }
-  if(act === 'delete-level'){ if(confirm('Delete?')){ const u = state.levels.filter(l => l.id !== el.dataset.id); await saveCloudLevels(u); render(); } return; }
+  if(act === 'new-level'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    state.editing = { id: 'lv'+Date.now(), title: 'New level', items: [], quiz: [] }; state.screen = 'edit'; render(); return; 
+  }
+  if(act === 'edit-level'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    state.editing = JSON.parse(JSON.stringify(state.levels.find(l => l.id === el.dataset.id))); state.screen = 'edit'; render(); return; 
+  }
+  if(act === 'delete-level'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    if(confirm('Delete?')){ const u = state.levels.filter(l => l.id !== el.dataset.id); await saveCloudLevels(u); render(); } return; 
+  }
   if(act === 'save-settings'){
+    if(state.username !== TEACHER_EMAIL) return;
     const s = getSettings(); s.passMark = Math.min(100, Math.max(10, Number(document.getElementById('set-pass').value) || 80));
     const pin = document.getElementById('set-pin').value.trim(); if(pin) s.pin = pin; setSettings(s); flash('Settings saved'); return;
   }
-  if(act === 'add-item'){ const t = el.dataset.type; state.editing.items.push(t==='text'?{type:'text',text:''}:{type:t,url:''}); render(); return; }
-  if(act === 'del-item'){ state.editing.items.splice(Number(el.dataset.i), 1); render(); return; }
-  if(act === 'add-q'){ state.editing.quiz.push({ q:'', options:['','','',''], answer:0, imageUrl:'' }); render(); return; }
-  if(act === 'del-q'){ state.editing.quiz.splice(Number(el.dataset.qi), 1); render(); return; }
+  if(act === 'add-item'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    const t = el.dataset.type; state.editing.items.push(t==='text'?{type:'text',text:''}:{type:t,url:''}); render(); return; 
+  }
+  if(act === 'del-item'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    state.editing.items.splice(Number(el.dataset.i), 1); render(); return; 
+  }
+  if(act === 'add-q'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    state.editing.quiz.push({ q:'', options:['','','',''], answer:0, imageUrl:'' }); render(); return; 
+  }
+  if(act === 'del-q'){ 
+    if(state.username !== TEACHER_EMAIL) return;
+    state.editing.quiz.splice(Number(el.dataset.qi), 1); render(); return; 
+  }
   if(act === 'save-level'){
+    if(state.username !== TEACHER_EMAIL) return;
     const lv = state.editing; if(!lv.title.trim()) return flash('Title required');
     lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.some(o => o.trim()));
     state.uploading = true; render();
