@@ -50,6 +50,7 @@
   button.sm{padding:7px 12px;font-size:13px;border-radius:10px}
   button.big{width:100%;padding:16px;font-size:17px;margin-top:6px}
   button.danger{background:transparent;color:var(--bad);border:1.5px solid #4a2626}
+  button.renew{background:#12b886;color:#fff;border:0}
   .tabs{display:flex;gap:8px;background:var(--card2);padding:5px;border-radius:14px;margin-bottom:16px}
   .tabs button{flex:1;background:transparent;color:var(--muted);padding:10px}
   .tabs button.on{background:var(--accent);color:#052522}
@@ -167,7 +168,7 @@ let state = {
   screen: 'auth', authMode: 'signin', username: null, uid: null, userProgress: {},
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
-  allUsers: [], blockedEmails: [], activeReminder: null, showReminder: false
+  allUsers: [], blockedEmails: [], activeReminder: null, showReminder: false, reminderTemplate: ''
 };
 
 const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
@@ -212,14 +213,26 @@ async function checkSecurityAndReminders(user) {
         return false;
       }
     }
-    const remSnap = await getDoc(doc(db, 'config', 'reminder'));
-    if (remSnap.exists() && remSnap.data().active) {
-      const rem = remSnap.data();
-      const userSnap = await getDoc(doc(db, 'users', user.uid));
-      const userData = userSnap.exists() ? userSnap.data() : {};
-      if (userData.reminderDismissed !== rem.id) {
-        state.activeReminder = rem;
-        state.showReminder = true;
+
+    // AUTOMATED REMINDER LOGIC
+    const userSnap = await getDoc(doc(db, 'users', user.uid));
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      if (userData.joinedDate) {
+        const days = getDaysSince(userData.joinedDate);
+        if (days >= 30) {
+          // Calculate which 30-day cycle they are in (1 = days 30-59, 2 = days 60-89)
+          const currentCycle = Math.floor(days / 30);
+          
+          // Only show if they haven't dismissed THIS cycle
+          if (userData.dismissedCycle !== currentCycle) {
+            const templateSnap = await getDoc(doc(db, 'config', 'reminderTemplate'));
+            if (templateSnap.exists() && templateSnap.data().text) {
+              state.activeReminder = { text: templateSnap.data().text, cycle: currentCycle };
+              state.showReminder = true;
+            }
+          }
+        }
       }
     }
   } catch (e) { console.error("Security check failed", e); }
@@ -231,18 +244,15 @@ async function fetchAllUsers() {
   state.blockedEmails = [];
   
   try {
-    // Get blocked list first
     const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
-    if (blockSnap.exists()) {
-      state.blockedEmails = blockSnap.data().emails || [];
-    }
+    if (blockSnap.exists()) state.blockedEmails = blockSnap.data().emails || [];
 
-    // Get all users
+    const templateSnap = await getDoc(doc(db, 'config', 'reminderTemplate'));
+    if (templateSnap.exists()) state.reminderTemplate = templateSnap.data().text || '';
+
     const querySnapshot = await getDocs(collection(db, "users"));
     querySnapshot.forEach((doc) => {
-      if(doc.id !== state.uid) {
-        state.allUsers.push({ uid: doc.id, ...doc.data() });
-      }
+      if(doc.id !== state.uid) state.allUsers.push({ uid: doc.id, ...doc.data() });
     });
   } catch(e) { console.error(e); }
 }
@@ -356,12 +366,14 @@ function teacherGateView(){
 }
 
 function teacherView(){
-  // Only count due payments for ACTIVE students
   const activeUsers = state.allUsers.filter(u => !state.blockedEmails.includes(u.email));
-  const dueCount = activeUsers.filter(u => isDue(u.joinedDate)).length;
+  const dueUsers = activeUsers.filter(u => isDue(u.joinedDate));
   
-  const alertHtml = dueCount > 0 
-    ? `<div class="alert-banner">⚠️ ${dueCount} student(s) need to pay!<button class="sm danger" data-act="manage-students" style="border:0;color:#fff;background:#000">View</button></div>` 
+  const alertHtml = dueUsers.length > 0 
+    ? `<div class="alert-banner" style="flex-direction:column;align-items:flex-start;gap:8px;">
+         <div>⚠️ ${dueUsers.length} student(s) have payment due!</div>
+         <div class="muted small" style="color:#ffd0d0">${dueUsers.map(u => esc(u.email)).join(', ')}</div>
+       </div>` 
     : '';
 
   return `
@@ -372,7 +384,7 @@ function teacherView(){
   <div class="card">
     <div class="row between"><strong>Tools</strong></div>
     <button class="big ghost" data-act="manage-students" style="margin-bottom:10px;">👥 Manage Students</button>
-    <button class="big ghost" data-act="manage-reminder">🔔 Set Monthly Reminder</button>
+    <button class="big ghost" data-act="manage-reminder">🔔 Edit Auto-Reminder Message</button>
   </div>
 
   <div class="card">
@@ -416,7 +428,7 @@ function manageStudentsView(){
         <strong style="font-size:14px;word-break:break-all;color:${isBlocked?'var(--muted)':'var(--txt)'}">${esc(displayName)}</strong>
         ${isBlocked 
           ? `<button class="ghost sm" data-act="unblock-user" data-email="${esc(u.email)}">Unblock</button>`
-          : `<button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button>`
+          : `<div class="row"><button class="renew sm" data-act="renew-user" data-uid="${u.uid}">Renew 30d</button><button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button></div>`
         }
       </div>
       <div class="row between">
@@ -431,7 +443,7 @@ function manageStudentsView(){
   
   <div class="card">
     <h3 style="color:var(--accent);margin-bottom:10px;">Active Students</h3>
-    <p class="muted small" style="margin-bottom:12px">After 30 days, they will show as <b style="color:var(--bad)">PAYMENT DUE</b>.</p>
+    <p class="muted small" style="margin-bottom:12px">Tap <b>Renew 30d</b> when a student pays to reset their timer.</p>
     ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, false)).join('') : '<p class="muted">No active students.</p>'}
   </div>
 
@@ -442,14 +454,12 @@ function manageStudentsView(){
 }
 
 function manageReminderView(){
-  const r = state.activeReminder || { text: '', active: false };
   return `
-  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Reminder</h2></div>
+  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Auto-Reminder</h2></div>
   <div class="card">
-    <p class="muted small">Type a message below. It will pop up on every student's screen and stay there until they click Dismiss.</p>
-    <textarea id="reminder-text" placeholder="e.g. Please pay the monthly subscription.">${esc(r.text || '')}</textarea>
-    <button class="big" data-act="save-reminder">Send Reminder</button>
-    ${r.active ? `<button class="big danger" data-act="stop-reminder" style="margin-top:10px">Stop Current Reminder</button>` : ''}
+    <p class="muted small">Type the message below. It will <b>automatically</b> pop up for any student whose 30-day due date has arrived. They will see it until they click "I Understand".</p>
+    <textarea id="reminder-text" placeholder="e.g. Your monthly subscription is due. Please pay to continue learning.">${esc(state.reminderTemplate || '')}</textarea>
+    <button class="big" data-act="save-reminder-template">Save Auto-Reminder Message</button>
   </div>`;
 }
 
@@ -516,7 +526,7 @@ document.addEventListener('click', async e => {
 
   if(act === 'dismiss-reminder') {
     state.showReminder = false;
-    await setDoc(doc(db, 'users', state.uid), { reminderDismissed: state.activeReminder.id }, { merge: true });
+    await setDoc(doc(db, 'users', state.uid), { dismissedCycle: state.activeReminder.cycle }, { merge: true });
     render(); return;
   }
 
@@ -524,6 +534,18 @@ document.addEventListener('click', async e => {
     await fetchAllUsers();
     state.screen = 'manage-students';
     render(); return;
+  }
+
+  if(act === 'renew-user') {
+    const targetUid = el.dataset.uid;
+    if(!confirm('Reset this student\'s 30-day timer?')) return;
+    try {
+      await setDoc(doc(db, 'users', targetUid), { joinedDate: new Date().toISOString(), dismissedCycle: 0 }, { merge: true });
+      flash('Student renewed for 30 days!');
+      await fetchAllUsers();
+      render();
+    } catch(e) { flash('Error renewing user.'); }
+    return;
   }
 
   if(act === 'block-user') {
@@ -561,20 +583,12 @@ document.addEventListener('click', async e => {
     state.screen = 'manage-reminder'; render(); return;
   }
 
-  if(act === 'save-reminder') {
+  if(act === 'save-reminder-template') {
     const text = document.getElementById('reminder-text').value.trim();
     if(!text) return flash('Please type a message.');
-    const id = Date.now().toString();
-    await setDoc(doc(db, 'config', 'reminder'), { text, active: true, id });
-    state.activeReminder = { text, active: true, id };
-    flash('Reminder sent to all users!');
-    render(); return;
-  }
-
-  if(act === 'stop-reminder') {
-    await setDoc(doc(db, 'config', 'reminder'), { active: false }, { merge: true });
-    state.activeReminder.active = false;
-    flash('Reminder stopped.');
+    await setDoc(doc(db, 'config', 'reminderTemplate'), { text });
+    state.reminderTemplate = text;
+    flash('Auto-reminder saved!');
     render(); return;
   }
 
@@ -715,16 +729,10 @@ onAuthStateChanged(auth, async (user) => {
         if (!docSnap.data().joinedDate) updates.joinedDate = new Date().toISOString();
         if (!docSnap.data().email) updates.email = user.email;
         
-        if (Object.keys(updates).length > 0) {
-          await setDoc(docRef, updates, { merge: true });
-        }
+        if (Object.keys(updates).length > 0) await setDoc(docRef, updates, { merge: true });
         state.userProgress = docSnap.data().progress || {};
       } else {
-        await setDoc(docRef, { 
-            joinedDate: new Date().toISOString(), 
-            email: user.email, 
-            progress: {} 
-        });
+        await setDoc(docRef, { joinedDate: new Date().toISOString(), email: user.email, progress: {} });
         state.userProgress = {};
       }
     } catch (e) { state.userProgress = {}; }
