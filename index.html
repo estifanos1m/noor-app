@@ -51,6 +51,7 @@
   button.big{width:100%;padding:16px;font-size:17px;margin-top:6px}
   button.danger{background:transparent;color:var(--bad);border:1.5px solid #4a2626}
   button.renew{background:#12b886;color:#fff;border:0}
+  button.warn{background:var(--warn);color:#000;border:0}
   .tabs{display:flex;gap:8px;background:var(--card2);padding:5px;border-radius:14px;margin-bottom:16px}
   .tabs button{flex:1;background:transparent;color:var(--muted);padding:10px}
   .tabs button.on{background:var(--accent);color:#052522}
@@ -97,14 +98,14 @@
   .hero{text-align:center;padding:30px 0 10px}
   .hero .logo{font-size:56px;line-height:1}
   
-  .reminder-overlay {
+  .payment-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.85); z-index: 1000;
-    display: grid; place-items: center; padding: 20px;
+    background: var(--bg); z-index: 1000;
+    display: flex; flex-direction: column; justify-content: center; padding: 20px;
   }
-  .reminder-box {
-    background: var(--card); border: 2px solid var(--warn); border-radius: 20px;
-    padding: 24px; max-width: 400px; width: 100%; text-align: center;
+  .payment-box {
+    background: var(--card); border: 2px solid var(--bad); border-radius: 20px;
+    padding: 24px; max-width: 400px; width: 100%; margin: 0 auto;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
   }
   .alert-banner {
@@ -168,7 +169,9 @@ let state = {
   screen: 'auth', authMode: 'signin', username: null, uid: null, userProgress: {},
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
-  allUsers: [], blockedEmails: [], activeReminder: null, showReminder: false, reminderTemplate: ''
+  allUsers: [], blockedEmails: [], paymentDetails: '', 
+  // PAYMENT BLOCK STATE
+  isPaymentBlocked: false, paymentStatus: 'active', userJoinedDate: null
 };
 
 const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
@@ -202,8 +205,9 @@ async function saveCloudLevels(levelsArray) {
   state.levels = levelsArray;
 }
 
-async function checkSecurityAndReminders(user) {
+async function checkSecurityAndPayments(user) {
   try {
+    // 1. Check if manually blocked by teacher
     const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
     if (blockSnap.exists()) {
       const blockedEmails = blockSnap.data().emails || [];
@@ -214,25 +218,20 @@ async function checkSecurityAndReminders(user) {
       }
     }
 
-    // AUTOMATED REMINDER LOGIC
+    // 2. Check Payment Due Date
     const userSnap = await getDoc(doc(db, 'users', user.uid));
     if (userSnap.exists()) {
       const userData = userSnap.data();
-      if (userData.joinedDate) {
-        const days = getDaysSince(userData.joinedDate);
-        if (days >= 30) {
-          // Calculate which 30-day cycle they are in (1 = days 30-59, 2 = days 60-89)
-          const currentCycle = Math.floor(days / 30);
-          
-          // Only show if they haven't dismissed THIS cycle
-          if (userData.dismissedCycle !== currentCycle) {
-            const templateSnap = await getDoc(doc(db, 'config', 'reminderTemplate'));
-            if (templateSnap.exists() && templateSnap.data().text) {
-              state.activeReminder = { text: templateSnap.data().text, cycle: currentCycle };
-              state.showReminder = true;
-            }
-          }
-        }
+      state.userJoinedDate = userData.joinedDate;
+      state.paymentStatus = userData.paymentStatus || 'active';
+
+      const days = getDaysSince(userData.joinedDate);
+      if (days >= 30 && state.paymentStatus !== 'active') {
+        // Fetch payment details to show them
+        const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
+        if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'Please contact the teacher.';
+        
+        state.isPaymentBlocked = true;
       }
     }
   } catch (e) { console.error("Security check failed", e); }
@@ -247,8 +246,8 @@ async function fetchAllUsers() {
     const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
     if (blockSnap.exists()) state.blockedEmails = blockSnap.data().emails || [];
 
-    const templateSnap = await getDoc(doc(db, 'config', 'reminderTemplate'));
-    if (templateSnap.exists()) state.reminderTemplate = templateSnap.data().text || '';
+    const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
+    if (paySnap.exists()) state.paymentDetails = paySnap.data().text || '';
 
     const querySnapshot = await getDocs(collection(db, "users"));
     querySnapshot.forEach((doc) => {
@@ -265,8 +264,8 @@ function getDaysSince(dateStr) {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-function isDue(dateStr) {
-  return getDaysSince(dateStr) >= 30;
+function isDue(dateStr, status) {
+  return getDaysSince(dateStr) >= 30 && status !== 'active';
 }
 
 // --- VIEWS ---
@@ -367,14 +366,20 @@ function teacherGateView(){
 
 function teacherView(){
   const activeUsers = state.allUsers.filter(u => !state.blockedEmails.includes(u.email));
-  const dueUsers = activeUsers.filter(u => isDue(u.joinedDate));
+  const pendingPayments = activeUsers.filter(u => isDue(u.joinedDate, u.paymentStatus) && u.paymentStatus === 'pending');
+  const dueUsers = activeUsers.filter(u => isDue(u.joinedDate, u.paymentStatus) && u.paymentStatus !== 'pending');
   
-  const alertHtml = dueUsers.length > 0 
-    ? `<div class="alert-banner" style="flex-direction:column;align-items:flex-start;gap:8px;">
-         <div>⚠️ ${dueUsers.length} student(s) have payment due!</div>
-         <div class="muted small" style="color:#ffd0d0">${dueUsers.map(u => esc(u.email)).join(', ')}</div>
-       </div>` 
-    : '';
+  let alertHtml = '';
+  if (pendingPayments.length > 0) {
+    alertHtml += `<div class="alert-banner" style="background:#4a3d1f;border-color:var(--warn);color:#fff;">
+      <div>🟡 ${pendingPayments.length} student(s) waiting for approval!</div>
+    </div>`;
+  }
+  if (dueUsers.length > 0) {
+    alertHtml += `<div class="alert-banner" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div>⚠️ ${dueUsers.length} student(s) are locked (Payment Due).</div>
+    </div>`;
+  }
 
   return `
   <div class="topbar"><button class="ghost sm" data-act="go-home">← Back</button><h2 style="margin:0">Teacher panel</h2></div>
@@ -383,8 +388,8 @@ function teacherView(){
 
   <div class="card">
     <div class="row between"><strong>Tools</strong></div>
-    <button class="big ghost" data-act="manage-students" style="margin-bottom:10px;">👥 Manage Students</button>
-    <button class="big ghost" data-act="manage-reminder">🔔 Edit Auto-Reminder Message</button>
+    <button class="big ghost" data-act="manage-students" style="margin-bottom:10px;">👥 Manage Students & Payments</button>
+    <button class="big ghost" data-act="manage-payment-details">🏦 Set Payment Details</button>
   </div>
 
   <div class="card">
@@ -409,15 +414,16 @@ function manageStudentsView(){
 
   const renderUserRow = (u, isBlocked) => {
     const days = getDaysSince(u.joinedDate);
-    const due = days >= 30 && !isBlocked;
-    const joinedStr = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : 'Unknown';
-    const displayName = u.email ? u.email : "Unknown Student";
-
+    const status = u.paymentStatus || 'active';
+    const isOverdue = days >= 30;
+    
     let statusBadge = '';
     if (isBlocked) {
-      statusBadge = `<span style="color:var(--muted);font-size:12px">Blocked</span>`;
-    } else if (due) {
-      statusBadge = `<span style="color:var(--bad);font-size:12px;font-weight:bold">⚠️ PAYMENT DUE (${days} days)</span>`;
+      statusBadge = `<span style="color:var(--muted);font-size:12px">Blocked by Teacher</span>`;
+    } else if (isOverdue && status === 'pending') {
+      statusBadge = `<span style="color:var(--warn);font-size:12px;font-weight:bold">🟡 PENDING PAYMENT (${days} days)</span>`;
+    } else if (isOverdue && status !== 'active') {
+      statusBadge = `<span style="color:var(--bad);font-size:12px;font-weight:bold">⚠️ LOCKED - NOT PAID (${days} days)</span>`;
     } else {
       statusBadge = `<span style="color:var(--accent);font-size:12px">Active (${days} days)</span>`;
     }
@@ -425,14 +431,17 @@ function manageStudentsView(){
     return `
     <div style="padding:12px 0;border-bottom:1px solid var(--line)">
       <div class="row between" style="margin-bottom:6px;">
-        <strong style="font-size:14px;word-break:break-all;color:${isBlocked?'var(--muted)':'var(--txt)'}">${esc(displayName)}</strong>
+        <strong style="font-size:14px;word-break:break-all;color:${isBlocked?'var(--muted)':'var(--txt)'}">${esc(u.email || 'Unknown')}</strong>
         ${isBlocked 
           ? `<button class="ghost sm" data-act="unblock-user" data-email="${esc(u.email)}">Unblock</button>`
-          : `<div class="row"><button class="renew sm" data-act="renew-user" data-uid="${u.uid}">Renew 30d</button><button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button></div>`
+          : `<div class="row">
+               ${isOverdue ? `<button class="renew sm" data-act="renew-user" data-uid="${u.uid}">Approve & Renew</button>` : ''}
+               <button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button>
+             </div>`
         }
       </div>
       <div class="row between">
-        <span class="muted small">Joined: ${joinedStr}</span>
+        <span class="muted small">Joined: ${u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : 'Unknown'}</span>
         ${statusBadge}
       </div>
     </div>`;
@@ -443,7 +452,7 @@ function manageStudentsView(){
   
   <div class="card">
     <h3 style="color:var(--accent);margin-bottom:10px;">Active Students</h3>
-    <p class="muted small" style="margin-bottom:12px">Tap <b>Renew 30d</b> when a student pays to reset their timer.</p>
+    <p class="muted small" style="margin-bottom:12px">If a student pays, tap <b>Approve & Renew</b> to reset their timer and unlock their app.</p>
     ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, false)).join('') : '<p class="muted">No active students.</p>'}
   </div>
 
@@ -453,13 +462,42 @@ function manageStudentsView(){
   </div>`;
 }
 
-function manageReminderView(){
+function managePaymentDetailsView(){
   return `
-  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Auto-Reminder</h2></div>
+  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Payment Details</h2></div>
   <div class="card">
-    <p class="muted small">Type the message below. It will <b>automatically</b> pop up for any student whose 30-day due date has arrived. They will see it until they click "I Understand".</p>
-    <textarea id="reminder-text" placeholder="e.g. Your monthly subscription is due. Please pay to continue learning.">${esc(state.reminderTemplate || '')}</textarea>
-    <button class="big" data-act="save-reminder-template">Save Auto-Reminder Message</button>
+    <p class="muted small">Type your Bank Account, Telebirr number, or payment instructions below. This text will be shown to students when they are locked.</p>
+    <textarea id="pay-details" placeholder="e.g. Telebirr: 0912345678&#10;Name: Estifanos" style="min-height:150px;">${esc(state.paymentDetails || '')}</textarea>
+    <button class="big" data-act="save-payment-details">Save Payment Details</button>
+  </div>`;
+}
+
+function paymentBlockedView(){
+  const isPending = state.paymentStatus === 'pending';
+  const days = getDaysSince(state.userJoinedDate);
+
+  return `
+  <div class="payment-overlay">
+    <div class="payment-box">
+      <div class="center" style="font-size:56px;margin-bottom:10px">${isPending ? '⏳' : '🔒'}</div>
+      
+      ${isPending ? `
+        <h2 class="center" style="color:var(--warn);margin-bottom:10px;">Payment Pending</h2>
+        <p class="center muted" style="margin-bottom:24px;">You have marked this as paid. Please wait for the teacher to verify and unlock your account.</p>
+      ` : `
+        <h2 class="center" style="color:var(--bad);margin-bottom:10px;">App Locked</h2>
+        <p class="center muted" style="margin-bottom:16px;">Your 30-day subscription has ended (${days} days). Please pay to continue learning.</p>
+        
+        <div style="background:var(--card2);border:1px dashed var(--accent);padding:16px;border-radius:12px;margin-bottom:24px;">
+          <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">Payment Details</div>
+          <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${esc(state.paymentDetails || 'Please contact the teacher for payment details.')}</div>
+        </div>
+
+        <button class="big warn" data-act="payment-done">I Have Paid</button>
+      `}
+      
+      <button class="big ghost" data-act="signout" style="margin-top:20px;">Log out</button>
+    </div>
   </div>`;
 }
 
@@ -491,8 +529,14 @@ function editView(){
 
 function render(){
   const app = document.getElementById('app');
-  let html = '';
+  
+  // HARD PAYMENT BLOCK OVERRIDE
+  if (state.isPaymentBlocked) {
+    app.innerHTML = paymentBlockedView() + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
+    return;
+  }
 
+  let html = '';
   if(state.loading) html = `<div class="center" style="margin-top:40vh"><h2>Loading...</h2></div>`;
   else if(!state.username) html = authView();
   else if(state.screen === 'home') html = homeView();
@@ -501,32 +545,20 @@ function render(){
   else if(state.screen === 'teacher-gate') html = teacherGateView();
   else if(state.screen === 'teacher') html = teacherView();
   else if(state.screen === 'manage-students') html = manageStudentsView();
-  else if(state.screen === 'manage-reminder') html = manageReminderView();
+  else if(state.screen === 'manage-payment-details') html = managePaymentDetailsView();
   else if(state.screen === 'edit') html = editView();
 
   if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">Uploading...</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
-
-  if(state.showReminder && state.activeReminder) {
-    app.innerHTML += `
-      <div class="reminder-overlay">
-        <div class="reminder-box">
-          <div style="font-size:40px;margin-bottom:10px">🔔</div>
-          <h2 style="color:var(--warn);margin-bottom:16px">Notice from Teacher</h2>
-          <p style="font-size:18px;margin-bottom:24px;white-space:pre-wrap;">${esc(state.activeReminder.text)}</p>
-          <button class="big" data-act="dismiss-reminder">I Understand</button>
-        </div>
-      </div>
-    `;
-  }
 }
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if(!el) return; const act = el.dataset.act;
 
-  if(act === 'dismiss-reminder') {
-    state.showReminder = false;
-    await setDoc(doc(db, 'users', state.uid), { dismissedCycle: state.activeReminder.cycle }, { merge: true });
+  if(act === 'payment-done') {
+    if(!confirm('Have you completed the payment? The teacher will verify and unlock your account.')) return;
+    state.paymentStatus = 'pending';
+    await setDoc(doc(db, 'users', state.uid), { paymentStatus: 'pending' }, { merge: true });
     render(); return;
   }
 
@@ -536,12 +568,27 @@ document.addEventListener('click', async e => {
     render(); return;
   }
 
+  if(act === 'manage-payment-details') {
+    state.screen = 'manage-payment-details'; render(); return;
+  }
+
+  if(act === 'save-payment-details') {
+    const txt = document.getElementById('pay-details').value.trim();
+    await setDoc(doc(db, 'config', 'paymentDetails'), { text: txt });
+    state.paymentDetails = txt;
+    flash('Payment details saved!');
+    return;
+  }
+
   if(act === 'renew-user') {
     const targetUid = el.dataset.uid;
-    if(!confirm('Reset this student\'s 30-day timer?')) return;
+    if(!confirm('Approve payment and unlock this student for 30 days?')) return;
     try {
-      await setDoc(doc(db, 'users', targetUid), { joinedDate: new Date().toISOString(), dismissedCycle: 0 }, { merge: true });
-      flash('Student renewed for 30 days!');
+      await setDoc(doc(db, 'users', targetUid), { 
+        joinedDate: new Date().toISOString(), 
+        paymentStatus: 'active' 
+      }, { merge: true });
+      flash('Student unlocked & renewed!');
       await fetchAllUsers();
       render();
     } catch(e) { flash('Error renewing user.'); }
@@ -579,19 +626,6 @@ document.addEventListener('click', async e => {
     return;
   }
 
-  if(act === 'manage-reminder') {
-    state.screen = 'manage-reminder'; render(); return;
-  }
-
-  if(act === 'save-reminder-template') {
-    const text = document.getElementById('reminder-text').value.trim();
-    if(!text) return flash('Please type a message.');
-    await setDoc(doc(db, 'config', 'reminderTemplate'), { text });
-    state.reminderTemplate = text;
-    flash('Auto-reminder saved!');
-    render(); return;
-  }
-
   if (act === 'install-app') {
     if (state.isStandalone) return flash('App is already installed!');
     if (state.installPrompt) {
@@ -623,7 +657,7 @@ document.addEventListener('click', async e => {
     return;
   }
 
-  if(act === 'signout'){ await signOut(auth); state.teacherUnlocked = false; state.screen = 'auth'; return; }
+  if(act === 'signout'){ await signOut(auth); state.teacherUnlocked = false; state.screen = 'auth'; state.isPaymentBlocked = false; return; }
   if(act === 'go-home'){ state.screen = 'home'; render(); return; }
   if(act === 'back-teacher'){ await fetchAllUsers(); state.screen = 'teacher'; render(); return; }
   if(act === 'open-level'){ state.levelId = el.dataset.id; state.screen = 'level'; render(); return; }
@@ -714,7 +748,7 @@ window.addEventListener('appinstalled', () => { state.installPrompt = null; stat
 onAuthStateChanged(auth, async (user) => {
   state.teacherUnlocked = false;
   if (user) {
-    const allowed = await checkSecurityAndReminders(user);
+    const allowed = await checkSecurityAndPayments(user);
     if(!allowed) return; 
 
     state.uid = user.uid;
@@ -740,7 +774,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadCloudLevels();
     state.screen = 'home'; state.loading = false; render();
   } else {
-    state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; render();
+    state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; state.isPaymentBlocked = false; render();
   }
 });
 </script>
