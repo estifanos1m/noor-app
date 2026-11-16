@@ -113,6 +113,7 @@
     padding: 12px; border-radius: 12px; margin-bottom: 14px; font-weight: 600;
     display: flex; justify-content: space-between; align-items: center;
   }
+  .pay-link { color: var(--accent); text-decoration: underline; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -150,6 +151,14 @@ const DEFAULT_LEVELS = [
 ];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Convert URLs in text to clickable links
+function linkify(text) {
+  if (!text) return '';
+  const escaped = esc(text);
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="pay-link">$1</a>');
+}
 
 function ytId(u){
   const m = String(u||'').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
@@ -471,8 +480,8 @@ function managePaymentDetailsView(){
   return `
   <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Payment Details</h2></div>
   <div class="card">
-    <p class="muted small">Type your Bank Account, Telebirr number, or payment instructions below. This text will be shown to students when they are locked.</p>
-    <textarea id="pay-details" placeholder="e.g. Telebirr: 0912345678&#10;Name: Estifanos" style="min-height:150px;">${esc(state.paymentDetails || '')}</textarea>
+    <p class="muted small">Type your Bank Account, Telebirr number, or payment instructions below. You can also paste a payment link (starting with http:// or https://) and it will become clickable for the students.</p>
+    <textarea id="pay-details" placeholder="e.g. Telebirr: 0912345678&#10;Link: https://example.com/pay" style="min-height:150px;">${esc(state.paymentDetails || '')}</textarea>
     <button class="big" data-act="save-payment-details">Save Payment Details</button>
   </div>`;
 }
@@ -495,7 +504,7 @@ function paymentBlockedView(){
         
         <div style="background:var(--card2);border:1px dashed var(--accent);padding:16px;border-radius:12px;margin-bottom:24px;">
           <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">Payment Details</div>
-          <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${esc(state.paymentDetails || 'Please contact the teacher for payment details.')}</div>
+          <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${linkify(state.paymentDetails || 'Please contact the teacher for payment details.')}</div>
         </div>
 
         <button class="big warn" data-act="payment-done">I Have Paid</button>
@@ -692,7 +701,6 @@ document.addEventListener('click', async e => {
     let rawInput = (document.getElementById('auth-user')?.value || '').trim();
     const p = document.getElementById('auth-pass')?.value || '';
     
-    // Auto-append @gmail.com logic
     let cleanName = rawInput.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
     if(!cleanName) return flash('Please enter a valid name.');
     
@@ -779,7 +787,6 @@ document.addEventListener('click', async e => {
   if(act === 'save-level'){
     if(state.username !== TEACHER_EMAIL) return;
     const lv = state.editing; if(!lv.title.trim()) return flash('Title required');
-    // Ensure at least 2 options exist per question
     lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.filter(o => o.trim()).length >= 2);
     state.uploading = true; render();
     const updated = [...state.levels]; const idx = updated.findIndex(l => l.id === lv.id);
