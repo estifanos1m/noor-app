@@ -6,9 +6,7 @@
 <meta name="theme-color" content="#0b3d3b">
 <title>Noor — Islamic Learning</title>
 <link rel="manifest" href="manifest.json">
-<!-- Custom Alif Icon -->
-<link rel="icon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23fcf4e8' stroke='%23555' stroke-width='2'/%3E%3Ctext x='8' y='20' fill='%23cc0000' font-size='18' font-weight='bold' font-family='sans-serif'%3EAlif%3C/text%3E%3Ctext x='48' y='75' fill='%23000' font-size='60' font-family='sans-serif' text-anchor='middle'%3E%D8%A7%3C/text%3E%3Ctext x='95' y='92' fill='%23cc0000' font-size='14' font-weight='bold' font-family='sans-serif' text-anchor='end'%3E%E0%8A%A0%E0%88%8D%E0%8D%8D%3C/text%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23fcf4e8' stroke='%23555' stroke-width='2'/%3E%3Ctext x='8' y='20' fill='%23cc0000' font-size='18' font-weight='bold' font-family='sans-serif'%3EAlif%3C/text%3E%3Ctext x='48' y='75' fill='%23000' font-size='60' font-family='sans-serif' text-anchor='middle'%3E%D8%A7%3C/text%3E%3Ctext x='95' y='92' fill='%23cc0000' font-size='14' font-weight='bold' font-family='sans-serif' text-anchor='end'%3E%E0%8A%A0%E0%88%8D%E0%8D%8D%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23fcf4e8' stroke='%23555' stroke-width='2'/%3E%3Ctext x='10' y='25' fill='%23cc0000' font-size='20' font-weight='bold' font-family='sans-serif'%3EAlif%3C/text%3E%3Ctext x='55' y='80' fill='%23000' font-size='70' font-family='sans-serif' text-anchor='middle'%3E%D8%A7%3C/text%3E%3Ctext x='95' y='92' fill='%23cc0000' font-size='16' font-weight='bold' font-family='sans-serif' text-anchor='end'%3E%E0%8A%A0%E0%88%8D%E0%8D%8D%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0b1f1e; --bg2:#0e2b29; --card:#123634; --card2:#17423f;
@@ -612,15 +610,6 @@ function render(){
 
   if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">Uploading...</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
-
-  if(state.username && !isTeacher && state.isAppBlurred) {
-    app.innerHTML += `
-    <div class="security-blur">
-      <h2 style="font-size:30px">🚫</h2>
-      <h2>Screen Hidden</h2>
-      <p class="muted">Please return to the app. Screen recording or switching apps is not allowed.</p>
-    </div>`;
-  }
 }
 
 document.addEventListener('click', async e => {
@@ -874,7 +863,7 @@ document.addEventListener('change', async e => {
   }
 });
 
-// --- SECURITY EVENT LISTENERS ---
+// --- FIXED SECURITY EVENT LISTENERS ---
 
 document.addEventListener('contextmenu', e => {
   if (state.username && state.username !== TEACHER_EMAIL) {
@@ -882,14 +871,21 @@ document.addEventListener('contextmenu', e => {
   }
 });
 
+// Fixed blur logic so it doesn't break the install prompt
 document.addEventListener('visibilitychange', () => {
   if (state.username && state.username !== TEACHER_EMAIL) {
+    let blur = document.getElementById('security-blur-overlay');
     if (document.hidden) {
-      state.isAppBlurred = true;
+      if (!blur) {
+        blur = document.createElement('div');
+        blur.id = 'security-blur-overlay';
+        blur.className = 'security-blur';
+        blur.innerHTML = `<h2 style="font-size:30px">🚫</h2><h2>Screen Hidden</h2><p class="muted">Please return to the app.</p>`;
+        document.body.appendChild(blur);
+      }
     } else {
-      state.isAppBlurred = false;
+      if (blur) blur.remove();
     }
-    render();
   }
 });
 
@@ -929,6 +925,8 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; state.isPaymentBlocked = false; 
     document.body.classList.remove('student-mode');
+    const blur = document.getElementById('security-blur-overlay');
+    if(blur) blur.remove();
     render();
   }
 });
