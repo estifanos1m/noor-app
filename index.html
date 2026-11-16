@@ -95,6 +95,22 @@
     padding:12px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:99}
   .hero{text-align:center;padding:30px 0 10px}
   .hero .logo{font-size:56px;line-height:1}
+  
+  .reminder-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85); z-index: 1000;
+    display: grid; place-items: center; padding: 20px;
+  }
+  .reminder-box {
+    background: var(--card); border: 2px solid var(--warn); border-radius: 20px;
+    padding: 24px; max-width: 400px; width: 100%; text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  .alert-banner {
+    background: #4a1f1f; border: 1px solid var(--bad); color: #ffd0d0;
+    padding: 12px; border-radius: 12px; margin-bottom: 14px; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
 </style>
 </head>
 <body>
@@ -103,7 +119,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDC0Kuc8fSTzG5mBNvavf4s4rTKo7Vx5DQ",
@@ -120,27 +136,14 @@ const db = getFirestore(app);
 
 const CLOUDINARY_CLOUD_NAME = 'bzk8vaxp';
 const CLOUDINARY_UPLOAD_PRESET = 'noor_uploads';
-
 const K_SETTINGS = 'noor_settings_v1';
 
 const DEFAULT_LEVELS = [
   {
-    id: 'lv1',
-    title: 'Level 1 · The Five Pillars of Islam',
-    items: [
-      { type:'text', text:'Islam is built upon five pillars. Every Muslim learns them and lives by them. In this level you will learn what they are and what each one means.' },
-      { type:'text', text:'1) Shahadah — declaring that there is no god but Allah and Muhammad ﷺ is His Messenger.\n2) Salah — the five daily prayers.\n3) Zakat — giving charity to the poor.\n4) Sawm — fasting during the month of Ramadan.\n5) Hajj — the pilgrimage to Makkah once in a lifetime, if able.' }
-    ],
-    quiz: [
-      { q:'How many pillars of Islam are there?', options:['Three','Five','Seven','Ten'], answer:1, imageUrl:'' },
-      { q:'Which pillar comes first?', options:['Zakat','Salah','Shahadah','Sawm'], answer:2, imageUrl:'' },
-      { q:'Fasting in Ramadan is which pillar?', options:['Second','Third','Fourth','Fifth'], answer:2, imageUrl:'' },
-      { q:'What is the pillar of charity called?', options:['Sawm','Zakat','Hajj','Salah'], answer:1, imageUrl:'' },
-      { q:'Hajj is performed in which city?', options:['Madinah','Makkah','Jerusalem','Cairo'], answer:1, imageUrl:'' }
-    ]
-  },
-  { id: 'lv2', title: 'Level 2 · The Pillars of Iman', items: [], quiz: [] },
-  { id: 'lv3', title: 'Level 3 · The Life of the Prophet ﷺ', items: [], quiz: [] }
+    id: 'lv1', title: 'Level 1 · The Five Pillars of Islam',
+    items: [{ type:'text', text:'Islam is built upon five pillars.' }],
+    quiz: [{ q:'How many pillars?', options:['Three','Five','Seven'], answer:1, imageUrl:'' }]
+  }
 ];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -154,53 +157,24 @@ async function uploadToCloudinary(file) {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
-    method: 'POST',
-    body: formData
-  });
-
-  if (!response.ok) {
-    throw new Error('Upload failed');
-  }
-
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
+  if (!response.ok) throw new Error('Upload failed');
   const data = await response.json();
   return data.secure_url; 
 }
 
 let state = {
-  screen: 'auth',
-  authMode: 'signin',
-  username: null,
-  uid: null,
-  userProgress: {},
-  levels: [],
-  levelId: null,
-  quiz: null,
-  teacherUnlocked: false,
-  editing: null,
-  flash: null,
-  loading: true,
-  uploading: false,
-  installPrompt: null,
-  isStandalone: false
+  screen: 'auth', authMode: 'signin', username: null, uid: null, userProgress: {},
+  levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
+  flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
+  allUsers: [], activeReminder: null, showReminder: false
 };
 
-const getSettings = () => {
-  try {
-    const v = localStorage.getItem(K_SETTINGS);
-    return v ? JSON.parse(v) : { pin:'1234', passMark:80 };
-  } catch(e) { return { pin:'1234', passMark:80 }; }
-};
+const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
 const setSettings = s => localStorage.setItem(K_SETTINGS, JSON.stringify(s));
 
 function getLevel(id){ return state.levels.find(l => l.id === id); }
-
-function isUnlocked(index, userProgress){
-  if(index === 0) return true;
-  const prev = state.levels[index-1];
-  return !!(userProgress && userProgress[prev.id] && userProgress[prev.id].passed);
-}
+function isUnlocked(index, userProgress){ if(index === 0) return true; return !!(userProgress && userProgress[state.levels[index-1].id]?.passed); }
 
 function flash(msg){
   state.flash = msg;
@@ -211,57 +185,86 @@ function flash(msg){
 async function saveProgressToCloud(levelId, score, passed) {
   if(!state.uid) return;
   state.userProgress[levelId] = { passed, score, date: Date.now() };
-  const userRef = doc(db, 'users', state.uid);
-  await setDoc(userRef, { progress: state.userProgress }, { merge: true });
+  await setDoc(doc(db, 'users', state.uid), { progress: state.userProgress }, { merge: true });
 }
 
 async function loadCloudLevels() {
   try {
-    const docRef = doc(db, 'config', 'levels');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists() && docSnap.data().levels) {
-      state.levels = docSnap.data().levels;
-    } else {
-      state.levels = DEFAULT_LEVELS;
-      await setDoc(docRef, { levels: DEFAULT_LEVELS });
-    }
-  } catch (e) {
-    console.error("Error loading levels:", e);
-    state.levels = DEFAULT_LEVELS;
-  }
+    const docSnap = await getDoc(doc(db, 'config', 'levels'));
+    if (docSnap.exists() && docSnap.data().levels) state.levels = docSnap.data().levels;
+    else { state.levels = DEFAULT_LEVELS; await setDoc(doc(db, 'config', 'levels'), { levels: DEFAULT_LEVELS }); }
+  } catch (e) { state.levels = DEFAULT_LEVELS; }
 }
 
 async function saveCloudLevels(levelsArray) {
-  const docRef = doc(db, 'config', 'levels');
-  await setDoc(docRef, { levels: levelsArray }, { merge: true });
+  await setDoc(doc(db, 'config', 'levels'), { levels: levelsArray }, { merge: true });
   state.levels = levelsArray;
 }
 
+async function checkSecurityAndReminders(user) {
+  try {
+    const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
+    if (blockSnap.exists()) {
+      const blockedEmails = blockSnap.data().emails || [];
+      if (blockedEmails.includes(user.email)) {
+        await signOut(auth);
+        alert("Your account has been blocked by the teacher.");
+        return false;
+      }
+    }
+    const remSnap = await getDoc(doc(db, 'config', 'reminder'));
+    if (remSnap.exists() && remSnap.data().active) {
+      const rem = remSnap.data();
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      const userData = userSnap.exists() ? userSnap.data() : {};
+      if (userData.reminderDismissed !== rem.id) {
+        state.activeReminder = rem;
+        state.showReminder = true;
+      }
+    }
+  } catch (e) { console.error("Security check failed", e); }
+  return true;
+}
+
+async function fetchAllUsers() {
+  state.allUsers = [];
+  try {
+    const querySnapshot = await getDocs(collection(db, "users"));
+    querySnapshot.forEach((doc) => {
+      if(doc.id !== state.uid) {
+        state.allUsers.push({ uid: doc.id, ...doc.data() });
+      }
+    });
+  } catch(e) { console.error(e); }
+}
+
+// Calculate days since joined
+function getDaysSince(dateStr) {
+  if(!dateStr) return 0;
+  const joined = new Date(dateStr);
+  const today = new Date();
+  const diffTime = Math.abs(today - joined);
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// If 30 days or more, payment is due
+function isDue(dateStr) {
+  return getDaysSince(dateStr) >= 30;
+}
+
+// --- VIEWS ---
 function authView(){
   return `
-  <div class="hero">
-    <div class="logo">🕌</div>
-    <h1>Noor</h1>
-    <p class="muted">Learn · Level up · Grow</p>
-  </div>
+  <div class="hero"><div class="logo">🕌</div><h1>Noor</h1><p class="muted">Learn · Level up · Grow</p></div>
   <div class="card">
     <div class="tabs">
       <button data-act="auth-mode" data-mode="signin" class="${state.authMode==='signin'?'on':''}">Sign in</button>
       <button data-act="auth-mode" data-mode="signup" class="${state.authMode==='signup'?'on':''}">Create account</button>
     </div>
-    <label>Email</label>
-    <input id="auth-user" type="email" autocomplete="email" placeholder="e.g. student@example.com" value="">
-    <label>Password</label>
-    <input id="auth-pass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
-    ${state.authMode==='signup' ? `
-      <label>Confirm password</label>
-      <input id="auth-pass2" type="password" placeholder="Repeat password">` : ''}
-    <button class="big" data-act="auth-submit" id="btn-auth">
-      ${state.authMode==='signin' ? 'Sign in' : 'Create my account'}
-    </button>
-    <p class="muted small center" style="margin-top:14px">
-      Your progress is saved securely in the cloud.
-    </p>
+    <label>Email</label><input id="auth-user" type="email" placeholder="student@example.com">
+    <label>Password</label><input id="auth-pass" type="password" placeholder="At least 6 characters">
+    ${state.authMode==='signup' ? `<label>Confirm password</label><input id="auth-pass2" type="password" placeholder="Repeat password">` : ''}
+    <button class="big" data-act="auth-submit" id="btn-auth">${state.authMode==='signin' ? 'Sign in' : 'Create my account'}</button>
   </div>`;
 }
 
@@ -269,20 +272,12 @@ function homeView(){
   const levels = state.levels;
   const passed = levels.filter(l => state.userProgress?.[l.id]?.passed).length;
   const pct = Math.round((passed / Math.max(levels.length,1)) * 100);
-
   const cards = levels.map((lv, i) => {
     const unlocked = isUnlocked(i, state.userProgress);
     const prog = state.userProgress?.[lv.id];
-    const status = prog?.passed
-      ? `Passed · ${prog.score}%`
-      : unlocked ? (lv.quiz?.length ? 'Ready to start' : 'No test yet') : 'Locked';
-    return `
-      <div class="level ${unlocked?'':'locked'}" ${unlocked?`data-act="open-level" data-id="${lv.id}"`:''}>
-        <div class="lv-num">${i+1}</div>
-        <div class="meta">
-          <h3>${esc(lv.title)}</h3>
-          <p>${status}</p>
-        </div>
+    const status = prog?.passed ? `Passed · ${prog.score}%` : unlocked ? 'Ready to start' : 'Locked';
+    return `<div class="level ${unlocked?'':'locked'}" ${unlocked?`data-act="open-level" data-id="${lv.id}"`:''}>
+        <div class="lv-num">${i+1}</div><div class="meta"><h3>${esc(lv.title)}</h3><p>${status}</p></div>
         <div class="badge">${prog?.passed ? '✅' : unlocked ? '▶️' : '🔒'}</div>
       </div>`;
   }).join('');
@@ -293,628 +288,405 @@ function homeView(){
 
   return `
   <div class="topbar">
-    <div style="flex:1;min-width:0">
-      <p class="muted small" style="margin:0">Assalamu alaykum</p>
-      <h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2>
-    </div>
+    <div style="flex:1;min-width:0"><p class="muted small" style="margin:0">Assalamu alaykum</p><h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2></div>
     ${installBtnHtml}
     <button class="ghost sm" data-act="teacher-open">👩‍🏫</button>
     <button class="ghost sm" data-act="signout">Exit</button>
   </div>
-
   <div class="card">
-    <div class="row between">
-      <strong>Your progress</strong>
-      <span class="muted small">${passed} / ${levels.length} levels</span>
-    </div>
+    <div class="row between"><strong>Your progress</strong><span class="muted small">${passed} / ${levels.length} levels</span></div>
     <div class="progress"><div style="width:${pct}%"></div></div>
   </div>
-
   ${cards}`;
 }
 
 function levelView(){
   const lv = getLevel(state.levelId);
-  if(!lv) return `<p>Level not found.</p>`;
-
   const items = (lv.items || []).map(it => {
     if(it.type === 'text') return `<p class="lesson-text">${esc(it.text).replace(/\n/g,'<br>')}</p>`;
     if(it.url){
       if(it.type === 'video'){
         const id = ytId(it.url);
-        if(id) return `<div class="media"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen allow="accelerometer; encrypted-media; picture-in-picture"></iframe></div>`;
+        if(id) return `<div class="media"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen></iframe></div>`;
         return `<div class="media"><video controls src="${esc(it.url)}"></video></div>`;
       }
-      if(it.type === 'image') return `<div class="media"><img src="${esc(it.url)}" alt=""></div>`;
+      if(it.type === 'image') return `<div class="media"><img src="${esc(it.url)}"></div>`;
       if(it.type === 'audio') return `<div class="media"><audio controls src="${esc(it.url)}"></audio></div>`;
     }
     return '';
   }).join('');
-
-  const hasQuiz = lv.quiz && lv.quiz.length > 0;
   const alreadyPassed = state.userProgress?.[lv.id]?.passed;
-
-  return `
-  <div class="topbar">
-    <button class="ghost sm" data-act="go-home">← Back</button>
-  </div>
-  <h2>${esc(lv.title)}</h2>
-  <div class="card">
-    ${items || '<p class="muted">No content in this level yet. Ask your teacher to add it.</p>'}
-  </div>
-  ${hasQuiz
-    ? `<button class="big" data-act="start-quiz">${alreadyPassed ? 'Retake the test' : 'Start the test'}</button>
-       <p class="muted small center" style="margin-top:10px">You need ${getSettings().passMark}% to unlock the next level.</p>`
-    : `<div class="card center muted">No test has been created for this level yet.</div>`}
-  `;
+  return `<div class="topbar"><button class="ghost sm" data-act="go-home">← Back</button></div>
+  <h2>${esc(lv.title)}</h2><div class="card">${items || '<p class="muted">No content yet.</p>'}</div>
+  ${lv.quiz?.length ? `<button class="big" data-act="start-quiz">${alreadyPassed ? 'Retake the test' : 'Start the test'}</button>` : ''}`;
 }
 
 function quizView(){
-  const lv = getLevel(state.levelId);
-  const qs = state.quiz;
-  const total = lv.quiz.length;
-
+  const lv = getLevel(state.levelId); const qs = state.quiz; const total = lv.quiz.length;
   if(qs.done){
     const pct = Math.round((qs.correct / total) * 100);
     const pass = pct >= getSettings().passMark;
-    const idx = state.levels.findIndex(l => l.id === lv.id);
-    const next = state.levels[idx + 1];
-    return `
-      <div class="card center">
-        <div style="font-size:56px">${pass ? '🎉' : '📚'}</div>
-        <h2>${pass ? 'Level complete!' : 'Almost there!'}</h2>
-        <p class="muted">You scored</p>
-        <div style="font-size:44px;font-weight:800;color:${pass?'var(--accent)':'var(--warn)'}">${pct}%</div>
-        <p class="muted small">${qs.correct} of ${total} correct · pass mark ${getSettings().passMark}%</p>
-        ${pass
-          ? (next ? `<button class="big" data-act="open-level" data-id="${next.id}">Continue to next level →</button>` : '')
-          : `<p class="muted" style="margin-top:12px">Review the lesson and try again. You can do it!</p>`}
-        <button class="big ghost" data-act="retry-quiz">${pass ? 'Retake test' : 'Try again'}</button>
-        <button class="big ghost" data-act="go-home">Back to levels</button>
-      </div>`;
+    const next = state.levels[state.levels.findIndex(l => l.id === lv.id) + 1];
+    return `<div class="card center"><div style="font-size:56px">${pass ? '🎉' : '📚'}</div><h2>${pass ? 'Level complete!' : 'Almost there!'}</h2>
+      <div style="font-size:44px;font-weight:800;color:${pass?'var(--accent)':'var(--warn)'}">${pct}%</div>
+      ${pass && next ? `<button class="big" data-act="open-level" data-id="${next.id}">Continue →</button>` : ''}
+      <button class="big ghost" data-act="retry-quiz">Try again</button><button class="big ghost" data-act="go-home">Back to levels</button></div>`;
   }
-
   const q = lv.quiz[qs.i];
-  const letters = ['A','B','C','D','E','F'];
-
   const opts = q.options.map((o, i) => {
     let cls = 'opt';
-    if(qs.checked){
-      if(i === q.answer) cls += ' right';
-      else if(i === qs.picked) cls += ' wrong';
-    } else if(i === qs.picked) cls += ' picked';
-    return `<button class="${cls}" data-act="pick" data-i="${i}">
-      <span class="key">${letters[i]}</span><span>${esc(o)}</span>
-    </button>`;
+    if(qs.checked){ if(i === q.answer) cls += ' right'; else if(i === qs.picked) cls += ' wrong'; } else if(i === qs.picked) cls += ' picked';
+    return `<button class="${cls}" data-act="pick" data-i="${i}"><span class="key">${['A','B','C','D'][i]}</span><span>${esc(o)}</span></button>`;
   }).join('');
-
-  let imageHtml = '';
-  if (q.imageUrl) {
-    imageHtml = `<div class="media" style="margin-bottom:16px"><img src="${esc(q.imageUrl)}" alt="Question image"></div>`;
-  }
-
-  return `
-  <div class="topbar">
-    <button class="ghost sm" data-act="quit-quiz">✕</button>
-    <div class="progress" style="flex:1;margin:0"><div style="width:${((qs.i)/total)*100}%"></div></div>
-    <span class="muted small">${qs.i+1}/${total}</span>
-  </div>
-  <div class="card">
-    <p class="muted small" style="margin-bottom:12px">Question ${qs.i+1}</p>
-    ${imageHtml}
-    <h2 style="margin-bottom:18px">${esc(q.q)}</h2>
-    ${opts}
-    ${qs.checked
-      ? `<div class="feedback ${qs.picked === q.answer ? 'ok' : 'no'}">
-           ${qs.picked === q.answer ? '✅ Correct — mashaAllah!' : '❌ Not quite. Correct answer: ' + esc(q.options[q.answer])}
-         </div>
-         <button class="big" data-act="quiz-continue">Continue</button>`
-      : `<button class="big" data-act="quiz-check" ${qs.picked===null?'disabled':''}>Check answer</button>`}
-  </div>`;
+  return `<div class="topbar"><button class="ghost sm" data-act="quit-quiz">✕</button><div class="progress" style="flex:1;margin:0"><div style="width:${((qs.i)/total)*100}%"></div></div></div>
+  <div class="card"><p class="muted small">Question ${qs.i+1}</p>${q.imageUrl ? `<div class="media"><img src="${esc(q.imageUrl)}"></div>` : ''}<h2>${esc(q.q)}</h2>${opts}
+  ${qs.checked ? `<div class="feedback ${qs.picked === q.answer ? 'ok' : 'no'}">${qs.picked === q.answer ? '✅ Correct!' : '❌ Wrong.'}</div><button class="big" data-act="quiz-continue">Continue</button>` : `<button class="big" data-act="quiz-check" ${qs.picked===null?'disabled':''}>Check answer</button>`}</div>`;
 }
 
 function teacherGateView(){
-  return `
-  <div class="topbar"><button class="ghost sm" data-act="go-home">← Back</button></div>
-  <div class="card">
-    <h2>Teacher access</h2>
-    <p class="muted">Enter the teacher PIN to add lessons and tests.</p>
-    <input id="pin-input" type="password" inputmode="numeric" placeholder="PIN">
-    <button class="big" data-act="pin-check">Unlock</button>
-  </div>`;
+  return `<div class="topbar"><button class="ghost sm" data-act="go-home">← Back</button></div>
+  <div class="card"><h2>Teacher access</h2><input id="pin-input" type="password" placeholder="PIN"><button class="big" data-act="pin-check">Unlock</button></div>`;
 }
 
 function teacherView(){
-  const levels = state.levels;
-  const s = getSettings();
-  const rows = levels.map((lv, i) => `
-    <div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)">
-      <div style="flex:1;min-width:0">
-        <strong style="font-size:14px">${i+1}. ${esc(lv.title)}</strong>
-        <div class="muted small">${(lv.items||[]).length} content item(s) · ${(lv.quiz||[]).length} question(s)</div>
-      </div>
-      <button class="ghost sm" data-act="edit-level" data-id="${lv.id}">Edit</button>
-      <button class="danger sm" data-act="delete-level" data-id="${lv.id}">🗑</button>
-    </div>`).join('');
+  const dueCount = state.allUsers.filter(u => isDue(u.joinedDate)).length;
+  const alertHtml = dueCount > 0 
+    ? `<div class="alert-banner">⚠️ ${dueCount} student(s) need to pay!<button class="sm danger" data-act="manage-students" style="border:0;color:#fff;background:#000">View</button></div>` 
+    : '';
 
   return `
-  <div class="topbar">
-    <button class="ghost sm" data-act="go-home">← Back</button>
-    <h2 style="margin:0">Teacher panel</h2>
+  <div class="topbar"><button class="ghost sm" data-act="go-home">← Back</button><h2 style="margin:0">Teacher panel</h2></div>
+  
+  ${alertHtml}
+
+  <div class="card">
+    <div class="row between"><strong>Tools</strong></div>
+    <button class="big ghost" data-act="manage-students" style="margin-bottom:10px;">👥 Manage Students</button>
+    <button class="big ghost" data-act="manage-reminder">🔔 Set Monthly Reminder</button>
   </div>
 
   <div class="card">
-    <div class="row between"><strong>Levels</strong>
-      <button class="ghost sm" data-act="new-level">+ New level</button>
-    </div>
-    ${rows}
+    <div class="row between"><strong>Levels</strong><button class="ghost sm" data-act="new-level">+ New level</button></div>
+    ${state.levels.map((lv, i) => `<div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="flex:1;min-width:0"><strong>${i+1}. ${esc(lv.title)}</strong></div>
+      <button class="ghost sm" data-act="edit-level" data-id="${lv.id}">Edit</button>
+      <button class="danger sm" data-act="delete-level" data-id="${lv.id}">🗑</button>
+    </div>`).join('')}
   </div>
 
   <div class="card">
-    <strong>Settings</strong>
-    <label style="margin-top:10px">Pass mark (%)</label>
-    <input id="set-pass" type="number" min="10" max="100" value="${s.passMark}">
-    <label>Teacher PIN</label>
-    <input id="set-pin" type="text" inputmode="numeric" value="${esc(s.pin)}">
+    <strong>Settings</strong><label>Pass mark (%)</label><input id="set-pass" type="number" value="${getSettings().passMark}">
+    <label>Teacher PIN</label><input id="set-pin" type="text" value="${esc(getSettings().pin)}">
     <button class="big ghost" data-act="save-settings">Save settings</button>
   </div>`;
 }
 
-function itemEditor(it, i){
-  const t = it.type;
-  let inner = '';
-  if(t === 'text'){
-    inner = `<textarea data-field="item-text" data-i="${i}" placeholder="Write the lesson text…">${esc(it.text||'')}</textarea>`;
-  } else {
-    const hint = t === 'video' ? 'YouTube link or video URL' : t === 'image' ? 'Image URL' : 'Audio URL';
-    inner = `
-      <input data-field="item-url" data-i="${i}" placeholder="${hint}" value="${esc(it.url||'')}">
-      <div class="muted small" style="margin-bottom:6px;color:var(--accent)">
-        ${it.url ? '✅ Media attached' : 'or upload a file from this device:'}
+function manageStudentsView(){
+  const rows = state.allUsers.map(u => {
+    const days = getDaysSince(u.joinedDate);
+    const due = days >= 30;
+    
+    // Display format
+    const joinedStr = u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : 'Unknown';
+    const statusBadge = due 
+      ? `<span style="color:var(--bad);font-size:12px;font-weight:bold">⚠️ PAYMENT DUE (${days} days)</span>`
+      : `<span style="color:var(--accent);font-size:12px">Active (${days} days)</span>`;
+
+    return `
+    <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+      <div class="row between" style="margin-bottom:6px;">
+        <strong style="font-size:13px;word-break:break-all">${esc(u.email)}</strong>
+        <button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button>
       </div>
-      <input type="file" data-upload="${t}" data-i="${i}"
-             accept="${t==='video'?'video/*':t==='image'?'image/*':'audio/*'}">`;
-  }
-  return `<div class="edit-box">
-    <div class="row between" style="margin-bottom:6px">
-      <span class="chip">${t}</span>
-      <button class="danger sm" data-act="del-item" data-i="${i}">✕</button>
-    </div>
-    ${inner}
+      <div class="row between">
+        <span class="muted small">Joined: ${joinedStr}</span>
+        ${statusBadge}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Students</h2></div>
+  <div class="card">
+    <p class="muted small">The app automatically tracks when a student joins. After 30 days, they will show as <b style="color:var(--bad)">PAYMENT DUE</b> so you can block them if necessary.</p>
+    ${rows || '<p class="muted">No students found.</p>'}
   </div>`;
 }
 
-function questionEditor(q, qi){
-  const opts = q.options.map((o, oi) => `
-    <div class="row" style="margin-bottom:4px">
-      <input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}>
-      <input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o)}" placeholder="Option ${oi+1}">
-    </div>`).join('');
-
-  return `<div class="edit-box">
-    <div class="row between" style="margin-bottom:6px">
-      <span class="chip">Question ${qi+1}</span>
-      <button class="danger sm" data-act="del-q" data-qi="${qi}">✕</button>
-    </div>
-    <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}" placeholder="Question text">
-    
-    <label style="margin-top:10px">Optional Image</label>
-    ${q.imageUrl ? `<div class="muted small" style="color:var(--accent);margin-bottom:6px">✅ Image attached</div>` : ''}
-    <input type="file" data-upload-qimage="${qi}" accept="image/*">
-    
-    <div class="muted small" style="margin:8px 0 4px">Select the correct answer:</div>
-    ${opts}
+function manageReminderView(){
+  const r = state.activeReminder || { text: '', active: false };
+  return `
+  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Reminder</h2></div>
+  <div class="card">
+    <p class="muted small">Type a message below. It will pop up on every student's screen and stay there until they click Dismiss.</p>
+    <textarea id="reminder-text" placeholder="e.g. Please pay the monthly subscription.">${esc(r.text || '')}</textarea>
+    <button class="big" data-act="save-reminder">Send Reminder</button>
+    ${r.active ? `<button class="big danger" data-act="stop-reminder" style="margin-top:10px">Stop Current Reminder</button>` : ''}
   </div>`;
+}
+
+function itemEditor(it, i){
+  if(it.type === 'text') return `<div class="edit-box"><div class="row between"><span class="chip">text</span><button class="danger sm" data-act="del-item" data-i="${i}">✕</button></div><textarea data-field="item-text" data-i="${i}">${esc(it.text||'')}</textarea></div>`;
+  const hint = it.type === 'video' ? 'Video URL' : it.type === 'image' ? 'Image URL' : 'Audio URL';
+  return `<div class="edit-box"><div class="row between"><span class="chip">${it.type}</span><button class="danger sm" data-act="del-item" data-i="${i}">✕</button></div>
+  <input data-field="item-url" data-i="${i}" placeholder="${hint}" value="${esc(it.url||'')}">
+  <input type="file" data-upload="${it.type}" data-i="${i}" accept="${it.type==='video'?'video/*':it.type==='image'?'image/*':'audio/*'}"></div>`;
+}
+
+function questionEditor(q, qi){
+  const opts = q.options.map((o, oi) => `<div class="row"><input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}><input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o)}"></div>`).join('');
+  return `<div class="edit-box"><div class="row between"><span class="chip">Q${qi+1}</span><button class="danger sm" data-act="del-q" data-qi="${qi}">✕</button></div>
+  <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}">
+  <label>Optional Image</label><input type="file" data-upload-qimage="${qi}" accept="image/*">
+  ${opts}</div>`;
 }
 
 function editView(){
   const lv = state.editing;
-  return `
-  <div class="topbar">
-    <button class="ghost sm" data-act="back-teacher">← Back</button>
-    <h2 style="margin:0">Edit level</h2>
-  </div>
-
-  <div class="card">
-    <label>Level title</label>
-    <input data-field="title" value="${esc(lv.title)}">
-
-    <label>Lesson content</label>
-    ${(lv.items||[]).map(itemEditor).join('') || '<p class="muted small">No content yet — add something below.</p>'}
-    <div class="row wrap" style="margin-top:8px">
-      <button class="ghost sm" data-act="add-item" data-type="text">+ Text</button>
-      <button class="ghost sm" data-act="add-item" data-type="video">+ Video</button>
-      <button class="ghost sm" data-act="add-item" data-type="image">+ Image</button>
-      <button class="ghost sm" data-act="add-item" data-type="audio">+ Audio</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <label>Test questions</label>
-    ${(lv.quiz||[]).map(questionEditor).join('') || '<p class="muted small">No questions yet.</p>'}
-    <button class="ghost sm" data-act="add-q" style="margin-top:8px">+ Add question</button>
-  </div>
-
-  <button class="big" data-act="save-level">💾 Save level</button>
-  <p class="muted small center" style="margin-top:10px">
-    Students must score ${getSettings().passMark}% on this test to unlock the next level.
-  </p>`;
+  return `<div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Edit level</h2></div>
+  <div class="card"><label>Level title</label><input data-field="title" value="${esc(lv.title)}">
+  ${(lv.items||[]).map(itemEditor).join('')}
+  <div class="row wrap"><button class="ghost sm" data-act="add-item" data-type="text">+ Text</button><button class="ghost sm" data-act="add-item" data-type="video">+ Video</button><button class="ghost sm" data-act="add-item" data-type="image">+ Image</button></div></div>
+  <div class="card"><label>Questions</label>${(lv.quiz||[]).map(questionEditor).join('')}<button class="ghost sm" data-act="add-q">+ Add question</button></div>
+  <button class="big" data-act="save-level">💾 Save level</button>`;
 }
 
 function render(){
   const app = document.getElementById('app');
   let html = '';
 
-  if(state.loading) {
-    html = `<div class="center" style="margin-top:40vh"><h2>Loading Noor...</h2><p class="muted">Connecting to cloud...</p></div>`;
-  } else if(!state.username){
-    html = authView();
-  } else if(state.screen === 'home'){
-    html = homeView();
-  } else if(state.screen === 'level'){
-    html = levelView();
-  } else if(state.screen === 'quiz'){
-    html = quizView();
-  } else if(state.screen === 'teacher-gate'){
-    html = teacherGateView();
-  } else if(state.screen === 'teacher'){
-    html = teacherView();
-  } else if(state.screen === 'edit'){
-    html = editView();
-  }
+  if(state.loading) html = `<div class="center" style="margin-top:40vh"><h2>Loading...</h2></div>`;
+  else if(!state.username) html = authView();
+  else if(state.screen === 'home') html = homeView();
+  else if(state.screen === 'level') html = levelView();
+  else if(state.screen === 'quiz') html = quizView();
+  else if(state.screen === 'teacher-gate') html = teacherGateView();
+  else if(state.screen === 'teacher') html = teacherView();
+  else if(state.screen === 'manage-students') html = manageStudentsView();
+  else if(state.screen === 'manage-reminder') html = manageReminderView();
+  else if(state.screen === 'edit') html = editView();
 
-  if(state.uploading) {
-    html += `<div class="flash" style="background:var(--warn);color:#000">Uploading file... please wait</div>`;
-  }
-
+  if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">Uploading...</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
+
+  if(state.showReminder && state.activeReminder) {
+    app.innerHTML += `
+      <div class="reminder-overlay">
+        <div class="reminder-box">
+          <div style="font-size:40px;margin-bottom:10px">🔔</div>
+          <h2 style="color:var(--warn);margin-bottom:16px">Notice from Teacher</h2>
+          <p style="font-size:18px;margin-bottom:24px;white-space:pre-wrap;">${esc(state.activeReminder.text)}</p>
+          <button class="big" data-act="dismiss-reminder">I Understand</button>
+        </div>
+      </div>
+    `;
+  }
 }
 
 document.addEventListener('click', async e => {
-  const el = e.target.closest('[data-act]');
-  if(!el) return;
-  const act = el.dataset.act;
+  const el = e.target.closest('[data-act]'); if(!el) return; const act = el.dataset.act;
+
+  if(act === 'dismiss-reminder') {
+    state.showReminder = false;
+    await setDoc(doc(db, 'users', state.uid), { reminderDismissed: state.activeReminder.id }, { merge: true });
+    render(); return;
+  }
+
+  if(act === 'manage-students') {
+    await fetchAllUsers();
+    state.screen = 'manage-students';
+    render(); return;
+  }
+
+  if(act === 'block-user') {
+    const email = el.dataset.email;
+    if(!confirm(`Block ${email}?`)) return;
+    try {
+      const snap = await getDoc(doc(db, 'config', 'blocked'));
+      let emails = snap.exists() ? (snap.data().emails || []) : [];
+      if(!emails.includes(email)) emails.push(email);
+      await setDoc(doc(db, 'config', 'blocked'), { emails });
+      flash('User blocked.');
+      await fetchAllUsers();
+      render();
+    } catch(e) { flash('Error blocking user.'); }
+    return;
+  }
+
+  if(act === 'manage-reminder') {
+    state.screen = 'manage-reminder'; render(); return;
+  }
+
+  if(act === 'save-reminder') {
+    const text = document.getElementById('reminder-text').value.trim();
+    if(!text) return flash('Please type a message.');
+    const id = Date.now().toString();
+    await setDoc(doc(db, 'config', 'reminder'), { text, active: true, id });
+    state.activeReminder = { text, active: true, id };
+    flash('Reminder sent to all users!');
+    render(); return;
+  }
+
+  if(act === 'stop-reminder') {
+    await setDoc(doc(db, 'config', 'reminder'), { active: false }, { merge: true });
+    state.activeReminder.active = false;
+    flash('Reminder stopped.');
+    render(); return;
+  }
 
   if (act === 'install-app') {
-    if (state.isStandalone) {
-      flash('App is already installed!');
-      return;
-    }
+    if (state.isStandalone) return flash('App is already installed!');
     if (state.installPrompt) {
       state.installPrompt.prompt();
       const { outcome } = await state.installPrompt.userChoice;
-      if (outcome === 'accepted') {
-        state.installPrompt = null;
-        state.isStandalone = true;
-        render();
-      }
-    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      flash('On iOS: Tap Share ⍗, then "Add to Home Screen"');
-    } else {
-      flash('App is already installed or not supported by this browser.');
-    }
+      if (outcome === 'accepted') { state.installPrompt = null; state.isStandalone = true; render(); }
+    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) flash('On iOS: Tap Share, then "Add to Home Screen"');
+    else flash('Not supported by this browser.');
     return;
   }
 
-  if(act === 'auth-mode'){
-    state.authMode = el.dataset.mode;
-    render(); return;
-  }
-
+  if(act === 'auth-mode'){ state.authMode = el.dataset.mode; render(); return; }
   if(act === 'auth-submit'){
     const email = (document.getElementById('auth-user')?.value || '').trim();
     const p = document.getElementById('auth-pass')?.value || '';
-    if(!email.includes('@')) return flash('Please enter a valid email address');
-    if(p.length < 6) return flash('Password must be at least 6 characters');
-
-    const btn = document.getElementById('btn-auth');
-    btn.disabled = true;
-    btn.innerText = 'Connecting...';
-
+    if(!email.includes('@')) return flash('Invalid email.');
+    if(p.length < 6) return flash('Password too short.');
+    const btn = document.getElementById('btn-auth'); btn.disabled = true; btn.innerText = 'Connecting...';
     try {
       if(state.authMode === 'signup'){
         const p2 = document.getElementById('auth-pass2')?.value || '';
-        if(p !== p2) {
-          btn.disabled = false; btn.innerText = 'Create my account';
-          return flash('Passwords do not match');
-        }
+        if(p !== p2) { btn.disabled = false; btn.innerText = 'Create my account'; return flash('Passwords do not match'); }
         await createUserWithEmailAndPassword(auth, email, p);
-      } else {
-        await signInWithEmailAndPassword(auth, email, p);
-      }
+      } else { await signInWithEmailAndPassword(auth, email, p); }
     } catch(err) {
-      btn.disabled = false; 
-      btn.innerText = state.authMode === 'signin' ? 'Sign in' : 'Create my account';
-      if(err.code === 'auth/email-already-in-use') flash('Email already registered');
-      else if(err.code === 'auth/invalid-credential') flash('Wrong email or password');
-      else flash(err.message);
+      btn.disabled = false; btn.innerText = state.authMode === 'signin' ? 'Sign in' : 'Create my account';
+      flash(err.code === 'auth/invalid-credential' ? 'Wrong email/password' : err.message);
     }
     return;
   }
 
-  if(act === 'signout'){
-    await signOut(auth);
-    state.username = null;
-    state.uid = null;
-    state.userProgress = {};
-    state.teacherUnlocked = false; // FIX: Lock teacher panel on logout
-    state.screen = 'auth';
-    render(); return;
-  }
-
+  if(act === 'signout'){ await signOut(auth); state.teacherUnlocked = false; state.screen = 'auth'; return; }
   if(act === 'go-home'){ state.screen = 'home'; render(); return; }
-
-  if(act === 'open-level'){
-    state.levelId = el.dataset.id;
-    state.screen = 'level';
-    render(); return;
-  }
-
-  if(act === 'start-quiz' || act === 'retry-quiz'){
-    state.quiz = { i:0, picked:null, checked:false, correct:0, done:false };
-    state.screen = 'quiz';
-    render(); return;
-  }
-
+  if(act === 'back-teacher'){ await fetchAllUsers(); state.screen = 'teacher'; render(); return; }
+  if(act === 'open-level'){ state.levelId = el.dataset.id; state.screen = 'level'; render(); return; }
+  if(act === 'start-quiz' || act === 'retry-quiz'){ state.quiz = { i:0, picked:null, checked:false, correct:0, done:false }; state.screen = 'quiz'; render(); return; }
   if(act === 'quit-quiz'){ state.screen = 'level'; render(); return; }
-
-  if(act === 'pick'){
-    if(state.quiz.checked) return;
-    state.quiz.picked = Number(el.dataset.i);
-    render(); return;
-  }
-
+  if(act === 'pick'){ if(!state.quiz.checked){ state.quiz.picked = Number(el.dataset.i); render(); } return; }
   if(act === 'quiz-check'){
-    const lv = getLevel(state.levelId);
-    if(state.quiz.picked === null) return;
-    state.quiz.checked = true;
-    if(state.quiz.picked === lv.quiz[state.quiz.i].answer) state.quiz.correct++;
-    render(); return;
+    const lv = getLevel(state.levelId); if(state.quiz.picked === null) return;
+    state.quiz.checked = true; if(state.quiz.picked === lv.quiz[state.quiz.i].answer) state.quiz.correct++; render(); return;
   }
-
   if(act === 'quiz-continue'){
-    const lv = getLevel(state.levelId);
-    const qs = state.quiz;
-    if(qs.i + 1 < lv.quiz.length){
-      qs.i++; qs.picked = null; qs.checked = false;
-      render(); return;
-    }
-    qs.done = true;
-    const pct = Math.round((qs.correct / lv.quiz.length) * 100);
-    if(pct >= getSettings().passMark){
-      await saveProgressToCloud(lv.id, pct, true);
-    }
-    render(); return;
+    const lv = getLevel(state.levelId); const qs = state.quiz;
+    if(qs.i + 1 < lv.quiz.length){ qs.i++; qs.picked = null; qs.checked = false; render(); return; }
+    qs.done = true; const pct = Math.round((qs.correct / lv.quiz.length) * 100);
+    if(pct >= getSettings().passMark) await saveProgressToCloud(lv.id, pct, true); render(); return;
   }
-
-  if(act === 'teacher-open'){
-    if(state.teacherUnlocked){ state.screen = 'teacher'; render(); }
-    else { state.screen = 'teacher-gate'; render(); }
-    return;
+  if(act === 'teacher-open'){ 
+    if(!state.teacherUnlocked){ state.screen = 'teacher-gate'; render(); return; }
+    else { await fetchAllUsers(); state.screen = 'teacher'; render(); return; }
   }
-
   if(act === 'pin-check'){
-    const pin = document.getElementById('pin-input')?.value || '';
-    if(pin === getSettings().pin){
-      state.teacherUnlocked = true;
-      state.screen = 'teacher';
-      render();
-    } else flash('Wrong PIN');
-    return;
+    if(document.getElementById('pin-input').value === getSettings().pin){ 
+      state.teacherUnlocked = true; await fetchAllUsers(); state.screen = 'teacher'; render(); 
+    } else flash('Wrong PIN'); return;
   }
-
-  if(act === 'new-level'){
-    const id = 'lv' + Date.now();
-    state.editing = { id, title: 'New level', items: [], quiz: [] };
-    state.screen = 'edit';
-    render(); return;
-  }
-
-  if(act === 'edit-level'){
-    const lv = state.levels.find(l => l.id === el.dataset.id);
-    state.editing = JSON.parse(JSON.stringify(lv));
-    state.screen = 'edit';
-    render(); return;
-  }
-
-  if(act === 'delete-level'){
-    if(!confirm('Delete this level and all its content?')) return;
-    const updated = state.levels.filter(l => l.id !== el.dataset.id);
-    await saveCloudLevels(updated);
-    render(); return;
-  }
-
+  if(act === 'new-level'){ state.editing = { id: 'lv'+Date.now(), title: 'New level', items: [], quiz: [] }; state.screen = 'edit'; render(); return; }
+  if(act === 'edit-level'){ state.editing = JSON.parse(JSON.stringify(state.levels.find(l => l.id === el.dataset.id))); state.screen = 'edit'; render(); return; }
+  if(act === 'delete-level'){ if(confirm('Delete?')){ const u = state.levels.filter(l => l.id !== el.dataset.id); await saveCloudLevels(u); render(); } return; }
   if(act === 'save-settings'){
-    const s = getSettings();
-    s.passMark = Math.min(100, Math.max(10, Number(document.getElementById('set-pass').value) || 80));
-    const pin = (document.getElementById('set-pin').value || '').trim();
-    if(pin) s.pin = pin;
-    setSettings(s);
-    flash('Settings saved');
-    return;
+    const s = getSettings(); s.passMark = Math.min(100, Math.max(10, Number(document.getElementById('set-pass').value) || 80));
+    const pin = document.getElementById('set-pin').value.trim(); if(pin) s.pin = pin; setSettings(s); flash('Settings saved'); return;
   }
-
-  if(act === 'back-teacher'){ state.screen = 'teacher'; render(); return; }
-
-  if(act === 'add-item'){
-    const t = el.dataset.type;
-    state.editing.items = state.editing.items || [];
-    state.editing.items.push(t === 'text' ? { type:'text', text:'' } : { type:t, url:'' });
-    render(); return;
-  }
-
-  if(act === 'del-item'){
-    state.editing.items.splice(Number(el.dataset.i), 1);
-    render(); return;
-  }
-
-  if(act === 'add-q'){
-    state.editing.quiz = state.editing.quiz || [];
-    state.editing.quiz.push({ q:'', options:['','','',''], answer:0, imageUrl:'' });
-    render(); return;
-  }
-
-  if(act === 'del-q'){
-    state.editing.quiz.splice(Number(el.dataset.qi), 1);
-    render(); return;
-  }
-
+  if(act === 'add-item'){ const t = el.dataset.type; state.editing.items.push(t==='text'?{type:'text',text:''}:{type:t,url:''}); render(); return; }
+  if(act === 'del-item'){ state.editing.items.splice(Number(el.dataset.i), 1); render(); return; }
+  if(act === 'add-q'){ state.editing.quiz.push({ q:'', options:['','','',''], answer:0, imageUrl:'' }); render(); return; }
+  if(act === 'del-q'){ state.editing.quiz.splice(Number(el.dataset.qi), 1); render(); return; }
   if(act === 'save-level'){
-    const lv = state.editing;
-    if(!lv.title.trim()) return flash('Please give the level a title');
+    const lv = state.editing; if(!lv.title.trim()) return flash('Title required');
     lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.some(o => o.trim()));
-    
-    state.uploading = true;
-    render();
-
-    const updatedLevels = [...state.levels];
-    const idx = updatedLevels.findIndex(l => l.id === lv.id);
-    if(idx >= 0) updatedLevels[idx] = lv; else updatedLevels.push(lv);
-    
-    await saveCloudLevels(updatedLevels);
-    
-    state.uploading = false;
-    state.screen = 'teacher';
-    flash('Level saved to cloud ✓');
-    return;
+    state.uploading = true; render();
+    const updated = [...state.levels]; const idx = updated.findIndex(l => l.id === lv.id);
+    if(idx >= 0) updated[idx] = lv; else updated.push(lv);
+    await saveCloudLevels(updated);
+    state.uploading = false; state.screen = 'teacher'; flash('Saved!'); return;
   }
 });
 
 document.addEventListener('input', e => {
-  const t = e.target;
-  if(!state.editing) return;
-  if(t.dataset.field === 'title'){ state.editing.title = t.value; return; }
-  if(t.dataset.field === 'item-text'){ state.editing.items[Number(t.dataset.i)].text = t.value; return; }
-  if(t.dataset.field === 'item-url'){ state.editing.items[Number(t.dataset.i)].url = t.value; return; }
-  if(t.dataset.field === 'q-text'){ state.editing.quiz[Number(t.dataset.qi)].q = t.value; return; }
-  if(t.dataset.field === 'q-opt'){ state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)] = t.value; return; }
+  const t = e.target; if(!state.editing) return;
+  if(t.dataset.field === 'title') state.editing.title = t.value;
+  if(t.dataset.field === 'item-text') state.editing.items[Number(t.dataset.i)].text = t.value;
+  if(t.dataset.field === 'item-url') state.editing.items[Number(t.dataset.i)].url = t.value;
+  if(t.dataset.field === 'q-text') state.editing.quiz[Number(t.dataset.qi)].q = t.value;
+  if(t.dataset.field === 'q-opt') state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)] = t.value;
 });
 
 document.addEventListener('change', async e => {
   const t = e.target;
+  if(t.dataset.answer !== undefined && state.editing){ state.editing.quiz[Number(t.dataset.answer)].answer = Number(t.dataset.oi); return; }
   
-  if(t.dataset.answer !== undefined && state.editing){
-    state.editing.quiz[Number(t.dataset.answer)].answer = Number(t.dataset.oi);
-    return;
-  }
-
   if(t.dataset.uploadQimage !== undefined && state.editing){
-    const qi = Number(t.dataset.uploadQimage);
-    const file = t.files && t.files[0];
-    if(!file) return;
-    
-    state.uploading = true;
-    render();
-
+    const file = t.files && t.files[0]; if(!file) return;
+    state.uploading = true; render();
     try {
-      const downloadURL = await uploadToCloudinary(file);
-      state.editing.quiz[qi].imageUrl = downloadURL;
-      state.uploading = false;
-      render();
-      flash('Image uploaded ✓');
-    } catch (err) {
-      console.error(err);
-      state.uploading = false;
-      render();
-      flash('Upload failed. Check Cloudinary settings.');
-    }
+      const url = await uploadToCloudinary(file);
+      state.editing.quiz[Number(t.dataset.uploadQimage)].imageUrl = url;
+      state.uploading = false; render(); flash('Image uploaded');
+    } catch(err) { state.uploading = false; render(); flash('Upload failed'); }
     return;
   }
 
   if(t.dataset.upload && state.editing){
-    const itemIndex = Number(t.dataset.i);
-    const file = t.files && t.files[0];
-    if(!file) return;
-    if(file.size > 60 * 1024 * 1024){
-      alert('File is larger than 60 MB. Please compress it or use a link.');
-      return;
-    }
-
-    state.uploading = true;
-    render();
-
+    const file = t.files && t.files[0]; if(!file) return;
+    state.uploading = true; render();
     try {
-      const downloadURL = await uploadToCloudinary(file);
-      state.editing.items[itemIndex].url = downloadURL;
-      state.uploading = false;
-      render();
-      flash('Media uploaded ✓');
-    } catch (err) {
-      console.error(err);
-      state.uploading = false;
-      render();
-      flash('Upload failed. Check Cloudinary settings.');
-    }
-  }
-});
-
-document.addEventListener('keydown', e => {
-  if(e.key === 'Enter' && !state.username && !state.loading){
-    document.querySelector('[data-act="auth-submit"]')?.click();
+      const url = await uploadToCloudinary(file);
+      state.editing.items[Number(t.dataset.i)].url = url;
+      state.uploading = false; render(); flash('File uploaded');
+    } catch(err) { state.uploading = false; render(); flash('Upload failed'); }
   }
 });
 
 if(!localStorage.getItem(K_SETTINGS)) setSettings({ pin:'1234', passMark:80 });
-
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-  state.isStandalone = true;
-}
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  state.installPrompt = e;
-  render(); 
-});
-
-window.addEventListener('appinstalled', () => {
-  state.installPrompt = null;
-  state.isStandalone = true;
-  render();
-  flash('App installed successfully! 🎉');
-});
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) state.isStandalone = true;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; render(); });
+window.addEventListener('appinstalled', () => { state.installPrompt = null; state.isStandalone = true; render(); flash('App installed! 🎉'); });
 
 onAuthStateChanged(auth, async (user) => {
-  state.teacherUnlocked = false; // FIX: Reset teacher access on every login/state change
-  
+  state.teacherUnlocked = false;
   if (user) {
+    const allowed = await checkSecurityAndReminders(user);
+    if(!allowed) return; 
+
     state.uid = user.uid;
     state.username = user.email;
     
     try {
       const docRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().progress) {
-        state.userProgress = docSnap.data().progress;
+      
+      // NEW: If user has no joinedDate, set it right now automatically
+      if (docSnap.exists()) {
+        if (!docSnap.data().joinedDate) {
+          await setDoc(docRef, { joinedDate: new Date().toISOString() }, { merge: true });
+        }
+        state.userProgress = docSnap.data().progress || {};
       } else {
+        await setDoc(docRef, { joinedDate: new Date().toISOString(), progress: {} });
         state.userProgress = {};
       }
-    } catch (e) {
-      console.error("Error fetching progress:", e);
-    }
+    } catch (e) { state.userProgress = {}; }
 
     await loadCloudLevels();
-    
-    state.screen = 'home';
-    state.loading = false;
-    render();
+    state.screen = 'home'; state.loading = false; render();
   } else {
-    state.username = null;
-    state.uid = null;
-    state.userProgress = {};
-    state.screen = 'auth';
-    state.loading = false;
-    render();
+    state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; render();
   }
 });
 </script>
-
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
-    });
-  }
+  if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log(err)); }); }
 </script>
-
 </body>
 </html>
