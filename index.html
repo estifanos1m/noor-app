@@ -114,6 +114,21 @@
     display: flex; justify-content: space-between; align-items: center;
   }
   .pay-link { color: var(--accent); text-decoration: underline; font-weight: bold; }
+
+  /* SECURITY OVERLAYS */
+  .watermark-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 9999;
+    display: flex; flex-wrap: wrap; justify-content: space-around; align-content: space-around; overflow: hidden;
+    opacity: 0.04; font-size: 18px; font-weight: bold; color: #fff;
+    transform: rotate(-20deg) scale(1.5); pointer-events: none;
+  }
+  .security-blur {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(11, 31, 30, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    color: var(--bad); text-align: center; padding: 20px;
+  }
 </style>
 </head>
 <body>
@@ -141,7 +156,7 @@ const CLOUDINARY_CLOUD_NAME = 'bzk8vaxp';
 const CLOUDINARY_UPLOAD_PRESET = 'noor_uploads';
 const K_SETTINGS = 'noor_settings_v1';
 const TEACHER_EMAIL = 'yasinmubarek75@gmail.com';
-const PAYMENT_CYCLE_DAYS = 60; // UPDATED TO 60 DAYS
+const PAYMENT_CYCLE_DAYS = 60; 
 
 const DEFAULT_LEVELS = [
   {
@@ -180,7 +195,8 @@ let state = {
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
-  isPaymentBlocked: false, paymentStatus: 'active', userJoinedDate: null
+  isPaymentBlocked: false, paymentStatus: 'active', userJoinedDate: null,
+  isAppBlurred: false // For security
 };
 
 const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
@@ -233,7 +249,6 @@ async function checkSecurityAndPayments(user) {
       state.paymentStatus = userData.paymentStatus || 'active';
 
       const days = getDaysSince(userData.joinedDate);
-      // UPDATED TO 60 DAYS
       if (user.email !== TEACHER_EMAIL && days >= PAYMENT_CYCLE_DAYS && state.paymentStatus !== 'active') {
         const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
         if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'Please contact the teacher.';
@@ -270,7 +285,6 @@ function getDaysSince(dateStr) {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-// UPDATED TO 60 DAYS
 function isDue(dateStr, status) {
   return getDaysSince(dateStr) >= PAYMENT_CYCLE_DAYS && status !== 'active';
 }
@@ -431,7 +445,7 @@ function manageStudentsView(){
   const renderUserRow = (u, isBlocked) => {
     const days = getDaysSince(u.joinedDate);
     const status = u.paymentStatus || 'active';
-    const isOverdue = days >= PAYMENT_CYCLE_DAYS; // UPDATED TO 60 DAYS
+    const isOverdue = days >= PAYMENT_CYCLE_DAYS;
     
     let statusBadge = '';
     if (isBlocked) {
@@ -560,8 +574,9 @@ function editView(){
 
 function render(){
   const app = document.getElementById('app');
+  const isTeacher = state.username === TEACHER_EMAIL;
   
-  if (state.username !== TEACHER_EMAIL && ['teacher', 'manage-students', 'manage-payment-details', 'edit'].includes(state.screen)) {
+  if (!isTeacher && ['teacher', 'manage-students', 'manage-payment-details', 'edit'].includes(state.screen)) {
     state.screen = 'home';
   }
 
@@ -584,6 +599,25 @@ function render(){
 
   if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">Uploading...</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
+
+  // SECURITY FEATURES (Only for students)
+  if(state.username && !isTeacher) {
+    // 1. Add Watermark
+    let watermarkHtml = `<div class="watermark-overlay">`;
+    for(let i=0; i<30; i++) watermarkHtml += `<span>${esc(state.username)}</span>`;
+    watermarkHtml += `</div>`;
+    app.innerHTML += watermarkHtml;
+
+    // 2. Blur if they leave the app (screen recording deterrent)
+    if(state.isAppBlurred) {
+      app.innerHTML += `
+      <div class="security-blur">
+        <h2 style="font-size:30px">🚫</h2>
+        <h2>Screen Hidden</h2>
+        <p class="muted">Please return to the app. Screen recording or switching apps is not allowed.</p>
+      </div>`;
+    }
+  }
 }
 
 document.addEventListener('click', async e => {
@@ -644,7 +678,6 @@ document.addEventListener('click', async e => {
   if(act === 'renew-user') {
     if(state.username !== TEACHER_EMAIL) return;
     const targetUid = el.dataset.uid;
-    // UPDATED TEXT TO 60 DAYS
     if(!confirm('Approve payment and unlock this student for 60 days?')) return;
     try {
       await setDoc(doc(db, 'users', targetUid), { joinedDate: new Date().toISOString(), paymentStatus: 'active' }, { merge: true });
@@ -831,6 +864,43 @@ document.addEventListener('change', async e => {
       state.editing.items[Number(t.dataset.i)].url = url;
       state.uploading = false; render(); flash('File uploaded');
     } catch(err) { state.uploading = false; render(); flash('Upload failed'); }
+  }
+});
+
+// --- SECURITY EVENT LISTENERS ---
+
+// 1. Disable Right Click / Long Press for Students
+document.addEventListener('contextmenu', e => {
+  if (state.username && state.username !== TEACHER_EMAIL) {
+    e.preventDefault();
+    flash('Right-click and long-press are disabled.');
+  }
+});
+
+// 2. Disable Text Selection for Students
+document.addEventListener('selectstart', e => {
+  if (state.username && state.username !== TEACHER_EMAIL) {
+    e.preventDefault();
+  }
+});
+
+// 3. Blur screen if they try to switch apps or record (visibilitychange)
+document.addEventListener('visibilitychange', () => {
+  if (state.username && state.username !== TEACHER_EMAIL) {
+    if (document.hidden) {
+      state.isAppBlurred = true;
+    } else {
+      state.isAppBlurred = false;
+    }
+    render();
+  }
+});
+
+// 4. Prevent PrintScreen (Desktop only, mobile ignores this)
+document.addEventListener('keydown', e => {
+  if (state.username && state.username !== TEACHER_EMAIL && e.key === 'PrintScreen') {
+    e.preventDefault();
+    flash('Screenshots are disabled.');
   }
 });
 
