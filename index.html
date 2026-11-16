@@ -224,7 +224,6 @@ async function checkSecurityAndPayments(user) {
       state.paymentStatus = userData.paymentStatus || 'active';
 
       const days = getDaysSince(userData.joinedDate);
-      // Teacher bypasses payment lock
       if (user.email !== TEACHER_EMAIL && days >= 30 && state.paymentStatus !== 'active') {
         const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
         if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'Please contact the teacher.';
@@ -274,8 +273,13 @@ function authView(){
       <button data-act="auth-mode" data-mode="signin" class="${state.authMode==='signin'?'on':''}">Sign in</button>
       <button data-act="auth-mode" data-mode="signup" class="${state.authMode==='signup'?'on':''}">Create account</button>
     </div>
-    <label>Email</label><input id="auth-user" type="email" placeholder="student@example.com">
-    <label>Password</label><input id="auth-pass" type="password" placeholder="At least 6 characters">
+    <label>Name / Username</label>
+    <input id="auth-user" type="text" placeholder="e.g. yasin" autocomplete="username">
+    <p class="muted small" style="margin-top:-6px;margin-bottom:12px;">@gmail.com will be added automatically.</p>
+    
+    <label>Password</label>
+    <input id="auth-pass" type="password" placeholder="At least 6 characters">
+    
     ${state.authMode==='signup' ? `<label>Confirm password</label><input id="auth-pass2" type="password" placeholder="Repeat password">` : ''}
     <button class="big" data-act="auth-submit" id="btn-auth">${state.authMode==='signin' ? 'Sign in' : 'Create my account'}</button>
   </div>`;
@@ -299,7 +303,6 @@ function homeView(){
     ? `<button class="ghost sm" data-act="install-app" style="color:var(--muted);border-color:var(--line)">✅ Installed</button>`
     : `<button class="ghost sm" data-act="install-app" style="color:var(--warn);border-color:var(--warn)">📲 Install</button>`;
 
-  // Only show Teacher button if logged in as the Teacher
   const teacherBtnHtml = state.username === TEACHER_EMAIL 
     ? `<button class="ghost sm" data-act="teacher-open">👩‍🏫</button>` 
     : '';
@@ -354,7 +357,7 @@ function quizView(){
   const opts = q.options.map((o, i) => {
     let cls = 'opt';
     if(qs.checked){ if(i === q.answer) cls += ' right'; else if(i === qs.picked) cls += ' wrong'; } else if(i === qs.picked) cls += ' picked';
-    return `<button class="${cls}" data-act="pick" data-i="${i}"><span class="key">${['A','B','C','D'][i]}</span><span>${esc(o)}</span></button>`;
+    return `<button class="${cls}" data-act="pick" data-i="${i}"><span class="key">${['A','B','C','D','E','F'][i]}</span><span>${esc(o)}</span></button>`;
   }).join('');
   return `<div class="topbar"><button class="ghost sm" data-act="quit-quiz">✕</button><div class="progress" style="flex:1;margin:0"><div style="width:${((qs.i)/total)*100}%"></div></div></div>
   <div class="card"><p class="muted small">Question ${qs.i+1}</p>${q.imageUrl ? `<div class="media"><img src="${esc(q.imageUrl)}"></div>` : ''}<h2>${esc(q.q)}</h2>${opts}
@@ -512,11 +515,26 @@ function itemEditor(it, i){
 }
 
 function questionEditor(q, qi){
-  const opts = q.options.map((o, oi) => `<div class="row"><input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}><input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o)}"></div>`).join('');
-  return `<div class="edit-box"><div class="row between"><span class="chip">Q${qi+1}</span><button class="danger sm" data-act="del-q" data-qi="${qi}">✕</button></div>
-  <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}">
-  <label>Optional Image</label><input type="file" data-upload-qimage="${qi}" accept="image/*">
-  ${opts}</div>`;
+  const opts = q.options.map((o, oi) => `
+    <div class="row" style="margin-bottom:6px">
+      <input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}>
+      <input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o)}" placeholder="Option ${['A','B','C','D','E','F'][oi]}">
+    </div>`).join('');
+
+  return `<div class="edit-box">
+    <div class="row between" style="margin-bottom:6px">
+      <span class="chip">Question ${qi+1}</span>
+      <button class="danger sm" data-act="del-q" data-qi="${qi}">✕</button>
+    </div>
+    <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}" placeholder="Question text">
+    <label>Optional Image</label><input type="file" data-upload-qimage="${qi}" accept="image/*">
+    <div class="muted small" style="margin:12px 0 4px;font-weight:bold;color:var(--accent)">Select the correct answer:</div>
+    ${opts}
+    <div class="row wrap" style="margin-top:8px">
+      <button class="ghost sm" data-act="add-option" data-qi="${qi}">+ Add Option</button>
+      <button class="danger sm" data-act="del-option" data-qi="${qi}">✕ Remove Last Option</button>
+    </div>
+  </div>`;
 }
 
 function editView(){
@@ -532,7 +550,6 @@ function editView(){
 function render(){
   const app = document.getElementById('app');
   
-  // Security override: Force non-teachers out of teacher screens
   if (state.username !== TEACHER_EMAIL && ['teacher', 'manage-students', 'manage-payment-details', 'edit'].includes(state.screen)) {
     state.screen = 'home';
   }
@@ -560,6 +577,30 @@ function render(){
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if(!el) return; const act = el.dataset.act;
+
+  if(act === 'add-option') {
+    const qi = Number(el.dataset.qi);
+    if(state.editing.quiz[qi].options.length < 6) {
+      state.editing.quiz[qi].options.push('');
+      render();
+    } else {
+      flash('Maximum 6 options allowed');
+    }
+    return;
+  }
+
+  if(act === 'del-option') {
+    const qi = Number(el.dataset.qi);
+    const q = state.editing.quiz[qi];
+    if(q.options.length > 2) {
+      q.options.pop();
+      if(q.answer >= q.options.length) q.answer = 0;
+      render();
+    } else {
+      flash('Must have at least 2 options');
+    }
+    return;
+  }
 
   if(act === 'payment-done') {
     if(!confirm('Have you completed the payment? The teacher will verify and unlock your account.')) return;
@@ -648,9 +689,15 @@ document.addEventListener('click', async e => {
 
   if(act === 'auth-mode'){ state.authMode = el.dataset.mode; render(); return; }
   if(act === 'auth-submit'){
-    const email = (document.getElementById('auth-user')?.value || '').trim();
+    let rawInput = (document.getElementById('auth-user')?.value || '').trim();
     const p = document.getElementById('auth-pass')?.value || '';
-    if(!email.includes('@')) return flash('Invalid email.');
+    
+    // Auto-append @gmail.com logic
+    let cleanName = rawInput.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    if(!cleanName) return flash('Please enter a valid name.');
+    
+    const email = cleanName + '@gmail.com';
+
     if(p.length < 6) return flash('Password too short.');
     const btn = document.getElementById('btn-auth'); btn.disabled = true; btn.innerText = 'Connecting...';
     try {
@@ -661,7 +708,7 @@ document.addEventListener('click', async e => {
       } else { await signInWithEmailAndPassword(auth, email, p); }
     } catch(err) {
       btn.disabled = false; btn.innerText = state.authMode === 'signin' ? 'Sign in' : 'Create my account';
-      flash(err.code === 'auth/invalid-credential' ? 'Wrong email/password' : err.message);
+      flash(err.code === 'auth/invalid-credential' ? 'Wrong name/password' : err.message);
     }
     return;
   }
@@ -732,7 +779,8 @@ document.addEventListener('click', async e => {
   if(act === 'save-level'){
     if(state.username !== TEACHER_EMAIL) return;
     const lv = state.editing; if(!lv.title.trim()) return flash('Title required');
-    lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.some(o => o.trim()));
+    // Ensure at least 2 options exist per question
+    lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.filter(o => o.trim()).length >= 2);
     state.uploading = true; render();
     const updated = [...state.levels]; const idx = updated.findIndex(l => l.id === lv.id);
     if(idx >= 0) updated[idx] = lv; else updated.push(lv);
