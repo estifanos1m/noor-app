@@ -97,7 +97,7 @@
   .feedback.ok{background:#0f4a35;color:#b6ffe4}
   .feedback.no{background:#4a1f1f;color:#ffd0d0}
   .flash{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--accent);color:#052522;
-    padding:12px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:99}
+    padding:12px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:99;width:90%;max-width:400px;text-align:center}
   .hero{text-align:center;padding:30px 0 10px}
   .hero .logo{font-size:56px;line-height:1}
   
@@ -215,7 +215,7 @@ function isUnlocked(index, userProgress){ if(index === 0) return true; return !!
 function flash(msg){
   state.flash = msg;
   render();
-  setTimeout(() => { state.flash = null; render(); }, 1800);
+  setTimeout(() => { state.flash = null; render(); }, 3500); // Increased time to read manual instructions
 }
 
 async function saveProgressToCloud(levelId, score, passed) {
@@ -726,12 +726,16 @@ document.addEventListener('click', async e => {
 
   if (act === 'install-app') {
     if (state.isStandalone) return flash('App is already installed!');
+    
     if (state.installPrompt) {
       state.installPrompt.prompt();
       const { outcome } = await state.installPrompt.userChoice;
       if (outcome === 'accepted') { state.installPrompt = null; state.isStandalone = true; render(); }
-    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) flash('On iOS: Tap Share, then "Add to Home Screen"');
-    else flash('Not supported by this browser.');
+    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      flash('On iPhone: Tap Share ⍗, then "Add to Home Screen"');
+    } else {
+      flash('To install: Tap your browser menu (3 dots) and select "Add to Home screen" or "Install app". (Make sure you are using Chrome/Safari, not Telegram/WhatsApp).');
+    }
     return;
   }
 
