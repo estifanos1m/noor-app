@@ -115,19 +115,23 @@
   }
   .pay-link { color: var(--accent); text-decoration: underline; font-weight: bold; }
 
-  /* SECURITY OVERLAYS */
-  .watermark-overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    pointer-events: none; z-index: 9999;
-    display: flex; flex-wrap: wrap; justify-content: space-around; align-content: space-around; overflow: hidden;
-    opacity: 0.04; font-size: 18px; font-weight: bold; color: #fff;
-    transform: rotate(-20deg) scale(1.5); pointer-events: none;
-  }
+  /* SECURITY FEATURES */
   .security-blur {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(11, 31, 30, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    background: rgba(11, 31, 30, 0.98); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
     z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center;
     color: var(--bad); text-align: center; padding: 20px;
+  }
+
+  /* DISABLE COPYING & LONG PRESS FOR STUDENTS */
+  body.student-mode {
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+/Edge */
+    user-select: none; /* Standard */
+  }
+  body.student-mode img {
+    pointer-events: none; /* Prevents long-press save image on mobile */
   }
 </style>
 </head>
@@ -196,7 +200,7 @@ let state = {
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
   isPaymentBlocked: false, paymentStatus: 'active', userJoinedDate: null,
-  isAppBlurred: false // For security
+  isAppBlurred: false
 };
 
 const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
@@ -576,6 +580,13 @@ function render(){
   const app = document.getElementById('app');
   const isTeacher = state.username === TEACHER_EMAIL;
   
+  // Apply CSS security rules to students only
+  if (state.username && !isTeacher) {
+    document.body.classList.add('student-mode');
+  } else {
+    document.body.classList.remove('student-mode');
+  }
+
   if (!isTeacher && ['teacher', 'manage-students', 'manage-payment-details', 'edit'].includes(state.screen)) {
     state.screen = 'home';
   }
@@ -600,23 +611,14 @@ function render(){
   if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">Uploading...</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
 
-  // SECURITY FEATURES (Only for students)
-  if(state.username && !isTeacher) {
-    // 1. Add Watermark
-    let watermarkHtml = `<div class="watermark-overlay">`;
-    for(let i=0; i<30; i++) watermarkHtml += `<span>${esc(state.username)}</span>`;
-    watermarkHtml += `</div>`;
-    app.innerHTML += watermarkHtml;
-
-    // 2. Blur if they leave the app (screen recording deterrent)
-    if(state.isAppBlurred) {
-      app.innerHTML += `
-      <div class="security-blur">
-        <h2 style="font-size:30px">🚫</h2>
-        <h2>Screen Hidden</h2>
-        <p class="muted">Please return to the app. Screen recording or switching apps is not allowed.</p>
-      </div>`;
-    }
+  // Blur screen if they leave the app (Only for students)
+  if(state.username && !isTeacher && state.isAppBlurred) {
+    app.innerHTML += `
+    <div class="security-blur">
+      <h2 style="font-size:30px">🚫</h2>
+      <h2>Screen Hidden</h2>
+      <p class="muted">Please return to the app. Screen recording or switching apps is not allowed.</p>
+    </div>`;
   }
 }
 
@@ -869,22 +871,14 @@ document.addEventListener('change', async e => {
 
 // --- SECURITY EVENT LISTENERS ---
 
-// 1. Disable Right Click / Long Press for Students
+// 1. Disable Right Click / Long Press (for Desktop & Android)
 document.addEventListener('contextmenu', e => {
   if (state.username && state.username !== TEACHER_EMAIL) {
     e.preventDefault();
-    flash('Right-click and long-press are disabled.');
   }
 });
 
-// 2. Disable Text Selection for Students
-document.addEventListener('selectstart', e => {
-  if (state.username && state.username !== TEACHER_EMAIL) {
-    e.preventDefault();
-  }
-});
-
-// 3. Blur screen if they try to switch apps or record (visibilitychange)
+// 2. Blur screen if they switch apps (visibilitychange)
 document.addEventListener('visibilitychange', () => {
   if (state.username && state.username !== TEACHER_EMAIL) {
     if (document.hidden) {
@@ -893,14 +887,6 @@ document.addEventListener('visibilitychange', () => {
       state.isAppBlurred = false;
     }
     render();
-  }
-});
-
-// 4. Prevent PrintScreen (Desktop only, mobile ignores this)
-document.addEventListener('keydown', e => {
-  if (state.username && state.username !== TEACHER_EMAIL && e.key === 'PrintScreen') {
-    e.preventDefault();
-    flash('Screenshots are disabled.');
   }
 });
 
@@ -938,7 +924,9 @@ onAuthStateChanged(auth, async (user) => {
     await loadCloudLevels();
     state.screen = 'home'; state.loading = false; render();
   } else {
-    state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; state.isPaymentBlocked = false; render();
+    state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; state.isPaymentBlocked = false; 
+    document.body.classList.remove('student-mode');
+    render();
   }
 });
 </script>
