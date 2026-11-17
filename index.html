@@ -76,7 +76,8 @@
   .level .meta{flex:1;min-width:0}
   .level .meta p{margin:2px 0 0;font-size:13px;color:var(--muted)}
   .badge{font-size:20px}
-  .media{margin:10px 0;border-radius:14px;overflow:hidden;background:#000;cursor:pointer;position:relative}
+  .media{margin:10px 0;border-radius:14px;overflow:hidden;background:#000;position:relative}
+  .media img {cursor:pointer;}
   .media iframe,.media video,.media img{width:100%;display:block;border:0}
   .media iframe{aspect-ratio:16/9;height:auto}
   .media video{max-height:60vh}
@@ -140,7 +141,7 @@
     user-select: none;
   }
   body.student-mode img, body.student-mode video {
-    pointer-events: none; /* Prevents long-press save menu */
+    pointer-events: auto; /* Allow interaction, but contextmenu is blocked below */
   }
 </style>
 </head>
@@ -368,14 +369,13 @@ function levelView(){
         const id = ytId(it.url);
         if(id) return `<div class="media"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen></iframe></div>`;
         
-        // HTML5 Video: Added controlsList="nodownload", disablePictureInPicture, and allowfullscreen
-        return `<div class="media" data-act="fullscreen-img" data-url="${esc(it.url)}" data-isvideo="true">
+        // HTML5 Video: Native player, no download
+        return `<div class="media">
           <video controls controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false;" src="${esc(it.url)}"></video>
-          <div class="fullscreen-hint">Tap for Fullscreen</div>
         </div>`;
       }
       if(it.type === 'image') {
-        // Image: Wrapped in a clickable div to trigger fullscreen
+        // Image: Tap to open custom fullscreen
         return `<div class="media" data-act="fullscreen-img" data-url="${esc(it.url)}">
           <img src="${esc(it.url)}" alt="">
           <div class="fullscreen-hint">Tap to Expand</div>
@@ -609,7 +609,6 @@ function render(){
   const app = document.getElementById('app');
   const isTeacher = state.username === TEACHER_EMAIL;
   
-  // Apply CSS security rules to students only
   if (state.username && !isTeacher) {
     document.body.classList.add('student-mode');
   } else {
@@ -640,7 +639,6 @@ function render(){
   if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">Uploading...</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
 
-  // Blur screen if they leave the app (Only for students)
   if(state.username && !isTeacher && state.isAppBlurred) {
     app.innerHTML += `
     <div class="security-blur">
@@ -654,46 +652,57 @@ function render(){
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if(!el) return; const act = el.dataset.act;
 
+  // Custom Fullscreen ONLY for Images
   if(act === 'fullscreen-img') {
     const url = el.dataset.url;
-    const isVideo = el.dataset.isvideo === 'true';
+    if(!url) return;
     
     const div = document.createElement('div');
     div.style.position = 'fixed';
-    div.style.top = '0';
-    div.style.left = '0';
-    div.style.width = '100vw';
-    div.style.height = '100vh';
+    div.style.top = '0'; div.style.left = '0';
+    div.style.width = '100vw'; div.style.height = '100vh';
     div.style.backgroundColor = 'black';
     div.style.zIndex = '999999';
     div.style.display = 'flex';
     div.style.justifyContent = 'center';
     div.style.alignItems = 'center';
     
-    if(isVideo) {
-      const vid = document.createElement('video');
-      vid.src = url;
-      vid.controls = true;
-      vid.controlsList = "nodownload noplaybackrate";
-      vid.disablePictureInPicture = true;
-      vid.autoplay = true;
-      vid.style.width = '100%';
-      vid.style.maxHeight = '100%';
-      div.appendChild(vid);
-    } else {
-      const img = document.createElement('img');
-      img.src = url;
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.style.objectFit = 'contain';
-      div.appendChild(img);
-    }
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'contain';
+    img.style.pointerEvents = 'none'; // Prevent interactions on image itself
+    
+    div.appendChild(img);
+
+    // Add a Close Button
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '20px';
+    closeBtn.style.right = '20px';
+    closeBtn.style.color = 'white';
+    closeBtn.style.fontSize = '30px';
+    closeBtn.style.fontWeight = 'bold';
+    closeBtn.style.background = 'rgba(0,0,0,0.5)';
+    closeBtn.style.borderRadius = '50%';
+    closeBtn.style.width = '40px';
+    closeBtn.style.height = '40px';
+    closeBtn.style.display = 'flex';
+    closeBtn.style.justifyContent = 'center';
+    closeBtn.style.alignItems = 'center';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.zIndex = '1000000';
+    closeBtn.onclick = (e) => { e.stopPropagation(); div.remove(); };
+    div.appendChild(closeBtn);
+
+    // Clicking the background closes it
+    div.addEventListener('click', (e) => {
+        if(e.target === div) div.remove();
+    });
     
     document.body.appendChild(div);
-    
-    div.addEventListener('click', () => {
-      div.remove();
-    });
     return;
   }
 
