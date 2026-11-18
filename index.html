@@ -92,17 +92,12 @@
     border:1.5px solid var(--line);color:var(--txt);border-radius:14px;padding:14px;margin-bottom:10px;font-weight:500;
   }
   .opt.picked{border-color:var(--accent);background:#164a44}
-  .opt.right{border-color:var(--accent);background:#0f4a35;color:#b6ffe4}
-  .opt.wrong{border-color:var(--bad);background:#4a1f1f;color:#ffd0d0}
   .opt .key{width:26px;height:26px;flex:0 0 26px;border-radius:8px;background:#0d2b29;display:grid;place-items:center;font-size:13px;color:var(--muted)}
   .progress{height:8px;background:#0d2b29;border-radius:99px;overflow:hidden;margin:8px 0 14px}
   .progress > div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:.4s}
   .chip{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);background:#0d2b29;padding:4px 9px;border-radius:99px}
   .edit-box{border:1px dashed var(--line);border-radius:14px;padding:12px;margin:10px 0}
   .edit-box input,.edit-box textarea{margin:6px 0}
-  .feedback{padding:14px;border-radius:14px;margin-bottom:14px;font-weight:600}
-  .feedback.ok{background:#0f4a35;color:#b6ffe4}
-  .feedback.no{background:#4a1f1f;color:#ffd0d0}
   .flash{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--accent);color:#052522;
     padding:12px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:99}
   .hero{text-align:center;padding:30px 0 10px}
@@ -125,6 +120,18 @@
   }
   .pay-link { color: var(--accent); text-decoration: underline; font-weight: bold; }
 
+  /* MODAL OVERLAY */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85); z-index: 1000;
+    display: flex; justify-content: center; align-items: center; padding: 20px;
+  }
+  .modal-box {
+    background: var(--card); border: 2px solid var(--accent); border-radius: 20px;
+    padding: 24px; max-width: 400px; width: 100%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+
   /* SECURITY FEATURES */
   .security-blur {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -141,7 +148,7 @@
     user-select: none;
   }
   body.student-mode img, body.student-mode video {
-    pointer-events: auto; /* Allow interaction, but contextmenu is blocked below */
+    pointer-events: auto;
   }
 </style>
 </head>
@@ -210,7 +217,7 @@ let state = {
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
   isPaymentBlocked: false, paymentStatus: 'active', userJoinedDate: null,
-  isAppBlurred: false
+  isAppBlurred: false, showInstallGuide: false
 };
 
 const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
@@ -369,13 +376,11 @@ function levelView(){
         const id = ytId(it.url);
         if(id) return `<div class="media"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen></iframe></div>`;
         
-        // HTML5 Video: Native player, no download
         return `<div class="media">
           <video controls controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false;" src="${esc(it.url)}"></video>
         </div>`;
       }
       if(it.type === 'image') {
-        // Image: Tap to open custom fullscreen
         return `<div class="media" data-act="fullscreen-img" data-url="${esc(it.url)}">
           <img src="${esc(it.url)}" alt="">
           <div class="fullscreen-hint">Tap to Expand</div>
@@ -393,20 +398,36 @@ function levelView(){
 
 function quizView(){
   const lv = getLevel(state.levelId); const qs = state.quiz; const total = lv.quiz.length;
+  
   if(qs.done){
     const pct = Math.round((qs.correct / total) * 100);
     const pass = pct >= getSettings().passMark;
     const next = state.levels[state.levels.findIndex(l => l.id === lv.id) + 1];
-    return `<div class="card center"><div style="font-size:56px">${pass ? '🎉' : '📚'}</div><h2>${pass ? 'Level complete!' : 'Almost there!'}</h2>
-      <div style="font-size:44px;font-weight:800;color:${pass?'var(--accent)':'var(--warn)'}">${pct}%</div>
-      ${pass && next ? `<button class="big" data-act="open-level" data-id="${next.id}">Continue →</button>` : ''}
-      <button class="big ghost" data-act="retry-quiz">Try again</button><button class="big ghost" data-act="go-home">Back to levels</button></div>`;
+    
+    return `<div class="card center">
+      <div style="font-size:56px">${pass ? '🎉' : '📚'}</div>
+      <h2>${pass ? 'Level complete!' : 'You did not pass'}</h2>
+      
+      <div style="font-size:44px;font-weight:800;color:${pass?'var(--accent)':'var(--bad)'}">${pct}%</div>
+      <p class="muted small">${qs.correct} of ${total} correct · pass mark ${getSettings().passMark}%</p>
+      
+      ${pass 
+        ? (next ? `<button class="big" data-act="open-level" data-id="${next.id}">Continue to next level →</button>` : '<p class="muted" style="margin-top:10px">You have finished all levels!</p>')
+        : `<p class="muted" style="margin-top:12px; color:var(--bad)">Please review the lesson and try again.</p>`}
+        
+      <button class="big ghost" data-act="retry-quiz">${pass ? 'Retake test' : 'Try again'}</button>
+      <button class="big ghost" data-act="go-home">Back to levels</button>
+    </div>`;
   }
+  
   const q = lv.quiz[qs.i];
+  
   const opts = q.options.map((o, i) => {
     let cls = 'opt';
-    if(qs.checked){ if(i === q.answer) cls += ' right'; else if(i === qs.picked) cls += ' wrong'; } else if(i === qs.picked) cls += ' picked';
-    return `<button class="${cls}" data-act="pick" data-i="${i}"><span class="key">${['A','B','C','D','E','F'][i]}</span><span>${esc(o)}</span></button>`;
+    if(qs.picked === i) cls += ' picked';
+    return `<button class="${cls}" data-act="pick" data-i="${i}">
+      <span class="key">${['A','B','C','D','E','F'][i]}</span><span>${esc(o)}</span>
+    </button>`;
   }).join('');
   
   let imageHtml = '';
@@ -417,9 +438,21 @@ function quizView(){
     </div>`;
   }
 
-  return `<div class="topbar"><button class="ghost sm" data-act="quit-quiz">✕</button><div class="progress" style="flex:1;margin:0"><div style="width:${((qs.i)/total)*100}%"></div></div></div>
-  <div class="card"><p class="muted small">Question ${qs.i+1}</p>${imageHtml}<h2>${esc(q.q)}</h2>${opts}
-  ${qs.checked ? `<div class="feedback ${qs.picked === q.answer ? 'ok' : 'no'}">${qs.picked === q.answer ? '✅ Correct!' : '❌ Wrong.'}</div><button class="big" data-act="quiz-continue">Continue</button>` : `<button class="big" data-act="quiz-check" ${qs.picked===null?'disabled':''}>Check answer</button>`}</div>`;
+  return `<div class="topbar">
+    <button class="ghost sm" data-act="quit-quiz">✕</button>
+    <div class="progress" style="flex:1;margin:0"><div style="width:${((qs.i)/total)*100}%"></div></div>
+    <span class="muted small">${qs.i+1}/${total}</span>
+  </div>
+  <div class="card">
+    <p class="muted small">Question ${qs.i+1}</p>
+    ${imageHtml}
+    <h2 style="margin-bottom:18px">${esc(q.q)}</h2>
+    ${opts}
+    
+    <button class="big" data-act="quiz-next" ${qs.picked===null?'disabled':''}>
+      ${qs.i === total - 1 ? 'Submit Test' : 'Next Question'}
+    </button>
+  </div>`;
 }
 
 function teacherGateView(){
@@ -639,6 +672,28 @@ function render(){
   if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">Uploading...</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
 
+  if (state.showInstallGuide) {
+    const isiOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    app.innerHTML += `
+    <div class="modal-overlay">
+      <div class="modal-box">
+        <h2 class="center" style="color:var(--accent);margin-bottom:16px;">📲 How to Install</h2>
+        <div style="text-align:left; margin: 16px 0; line-height: 1.6; font-size: 15px;">
+          ${isiOS ? `
+            <p><strong>On iPhone (Safari):</strong></p>
+            <p>1. Tap the <b>Share button</b> <svg style="width:16px;height:16px;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> at the bottom.</p>
+            <p>2. Scroll down and tap <b>"Add to Home Screen"</b>.</p>
+          ` : `
+            <p><strong>On Android / Desktop:</strong></p>
+            <p>1. Tap the browser menu <b>(3 dots ⋮ or ⋯)</b>.</p>
+            <p>2. Look for <b>"Install app"</b> or <b>"Add to Home Screen"</b> and tap it.</p>
+          `}
+        </div>
+        <button class="big" data-act="close-install-guide">Got it</button>
+      </div>
+    </div>`;
+  }
+
   if(state.username && !isTeacher && state.isAppBlurred) {
     app.innerHTML += `
     <div class="security-blur">
@@ -652,7 +707,12 @@ function render(){
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if(!el) return; const act = el.dataset.act;
 
-  // Custom Fullscreen ONLY for Images
+  if(act === 'close-install-guide') {
+    state.showInstallGuide = false;
+    render();
+    return;
+  }
+
   if(act === 'fullscreen-img') {
     const url = el.dataset.url;
     if(!url) return;
@@ -672,35 +732,23 @@ document.addEventListener('click', async e => {
     img.style.width = '100%';
     img.style.height = '100%';
     img.style.objectFit = 'contain';
-    img.style.pointerEvents = 'none'; // Prevent interactions on image itself
+    img.style.pointerEvents = 'none';
     
     div.appendChild(img);
 
-    // Add a Close Button
     const closeBtn = document.createElement('div');
     closeBtn.innerHTML = '✕';
     closeBtn.style.position = 'absolute';
-    closeBtn.style.top = '20px';
-    closeBtn.style.right = '20px';
-    closeBtn.style.color = 'white';
-    closeBtn.style.fontSize = '30px';
-    closeBtn.style.fontWeight = 'bold';
-    closeBtn.style.background = 'rgba(0,0,0,0.5)';
-    closeBtn.style.borderRadius = '50%';
-    closeBtn.style.width = '40px';
-    closeBtn.style.height = '40px';
-    closeBtn.style.display = 'flex';
-    closeBtn.style.justifyContent = 'center';
-    closeBtn.style.alignItems = 'center';
-    closeBtn.style.cursor = 'pointer';
-    closeBtn.style.zIndex = '1000000';
+    closeBtn.style.top = '20px'; closeBtn.style.right = '20px';
+    closeBtn.style.color = 'white'; closeBtn.style.fontSize = '30px';
+    closeBtn.style.fontWeight = 'bold'; closeBtn.style.background = 'rgba(0,0,0,0.5)';
+    closeBtn.style.borderRadius = '50%'; closeBtn.style.width = '40px'; closeBtn.style.height = '40px';
+    closeBtn.style.display = 'flex'; closeBtn.style.justifyContent = 'center'; closeBtn.style.alignItems = 'center';
+    closeBtn.style.cursor = 'pointer'; closeBtn.style.zIndex = '1000000';
     closeBtn.onclick = (e) => { e.stopPropagation(); div.remove(); };
     div.appendChild(closeBtn);
 
-    // Clicking the background closes it
-    div.addEventListener('click', (e) => {
-        if(e.target === div) div.remove();
-    });
+    div.addEventListener('click', (e) => { if(e.target === div) div.remove(); });
     
     document.body.appendChild(div);
     return;
@@ -711,9 +759,7 @@ document.addEventListener('click', async e => {
     if(state.editing.quiz[qi].options.length < 6) {
       state.editing.quiz[qi].options.push('');
       render();
-    } else {
-      flash('Maximum 6 options allowed');
-    }
+    } else { flash('Maximum 6 options allowed'); }
     return;
   }
 
@@ -724,9 +770,7 @@ document.addEventListener('click', async e => {
       q.options.pop();
       if(q.answer >= q.options.length) q.answer = 0;
       render();
-    } else {
-      flash('Must have at least 2 options');
-    }
+    } else { flash('Must have at least 2 options'); }
     return;
   }
 
@@ -810,8 +854,10 @@ document.addEventListener('click', async e => {
       state.installPrompt.prompt();
       const { outcome } = await state.installPrompt.userChoice;
       if (outcome === 'accepted') { state.installPrompt = null; state.isStandalone = true; render(); }
-    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) flash('On iOS: Tap Share, then "Add to Home Screen"');
-    else flash('Not supported by this browser.');
+    } else {
+      state.showInstallGuide = true;
+      render();
+    }
     return;
   }
 
@@ -847,19 +893,53 @@ document.addEventListener('click', async e => {
     await fetchAllUsers(); state.screen = 'teacher'; render(); return; 
   }
   if(act === 'open-level'){ state.levelId = el.dataset.id; state.screen = 'level'; render(); return; }
-  if(act === 'start-quiz' || act === 'retry-quiz'){ state.quiz = { i:0, picked:null, checked:false, correct:0, done:false }; state.screen = 'quiz'; render(); return; }
+  
+  if(act === 'start-quiz' || act === 'retry-quiz'){ 
+    state.quiz = { i:0, picked:null, answers:[], correct:0, done:false }; 
+    state.screen = 'quiz'; 
+    render(); return; 
+  }
+  
   if(act === 'quit-quiz'){ state.screen = 'level'; render(); return; }
-  if(act === 'pick'){ if(!state.quiz.checked){ state.quiz.picked = Number(el.dataset.i); render(); } return; }
-  if(act === 'quiz-check'){
-    const lv = getLevel(state.levelId); if(state.quiz.picked === null) return;
-    state.quiz.checked = true; if(state.quiz.picked === lv.quiz[state.quiz.i].answer) state.quiz.correct++; render(); return;
+  
+  if(act === 'pick'){ 
+    // Just highlight the picked option. No immediate feedback.
+    if(!state.quiz.done) {
+      state.quiz.picked = Number(el.dataset.i); 
+      render(); 
+    }
+    return; 
   }
-  if(act === 'quiz-continue'){
+  
+  if(act === 'quiz-next'){
     const lv = getLevel(state.levelId); const qs = state.quiz;
-    if(qs.i + 1 < lv.quiz.length){ qs.i++; qs.picked = null; qs.checked = false; render(); return; }
-    qs.done = true; const pct = Math.round((qs.correct / lv.quiz.length) * 100);
-    if(pct >= getSettings().passMark) await saveProgressToCloud(lv.id, pct, true); render(); return;
+    
+    // Save the answer
+    qs.answers[qs.i] = qs.picked;
+    
+    if(qs.i + 1 < lv.quiz.length){
+      // Go to next question
+      qs.i++; 
+      qs.picked = null; 
+      render(); return;
+    }
+    
+    // Last question, calculate score
+    let correctCount = 0;
+    lv.quiz.forEach((q, idx) => {
+        if(qs.answers[idx] === q.answer) correctCount++;
+    });
+    
+    qs.correct = correctCount;
+    qs.done = true; 
+    
+    const pct = Math.round((qs.correct / lv.quiz.length) * 100);
+    if(pct >= getSettings().passMark) {
+      await saveProgressToCloud(lv.id, pct, true); 
+    }
+    render(); return;
   }
+
   if(act === 'teacher-open'){ 
     if(state.username !== TEACHER_EMAIL) return flash('Access Denied');
     if(!state.teacherUnlocked){ state.screen = 'teacher-gate'; render(); return; }
@@ -952,21 +1032,16 @@ document.addEventListener('change', async e => {
 
 // --- SECURITY EVENT LISTENERS ---
 
-// 1. Disable Right Click / Long Press (for Desktop & Android)
 document.addEventListener('contextmenu', e => {
   if (state.username && state.username !== TEACHER_EMAIL) {
     e.preventDefault();
   }
 });
 
-// 2. Blur screen if they switch apps (visibilitychange)
 document.addEventListener('visibilitychange', () => {
   if (state.username && state.username !== TEACHER_EMAIL) {
-    if (document.hidden) {
-      state.isAppBlurred = true;
-    } else {
-      state.isAppBlurred = false;
-    }
+    if (document.hidden) { state.isAppBlurred = true; } 
+    else { state.isAppBlurred = false; }
     render();
   }
 });
