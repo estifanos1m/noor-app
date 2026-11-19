@@ -120,7 +120,6 @@
   }
   .pay-link { color: var(--accent); text-decoration: underline; font-weight: bold; }
 
-  /* MODAL OVERLAY */
   .modal-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.85); z-index: 1000;
@@ -140,7 +139,6 @@
     color: var(--bad); text-align: center; padding: 20px;
   }
 
-  /* DISABLE COPYING & LONG PRESS FOR STUDENTS */
   body.student-mode {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -216,7 +214,7 @@ let state = {
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
-  isPaymentBlocked: false, paymentStatus: 'active', userJoinedDate: null,
+  isPaymentBlocked: false, isPendingApproval: false, paymentStatus: 'active', userJoinedDate: null,
   isAppBlurred: false, showInstallGuide: false
 };
 
@@ -252,6 +250,9 @@ async function saveCloudLevels(levelsArray) {
 }
 
 async function checkSecurityAndPayments(user) {
+  state.isPendingApproval = false;
+  state.isPaymentBlocked = false;
+
   try {
     const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
     if (blockSnap.exists()) {
@@ -268,12 +269,24 @@ async function checkSecurityAndPayments(user) {
       const userData = userSnap.data();
       state.userJoinedDate = userData.joinedDate;
       state.paymentStatus = userData.paymentStatus || 'active';
+      const userStatus = userData.status || 'pending'; // Default to pending if missing
 
-      const days = getDaysSince(userData.joinedDate);
-      if (user.email !== TEACHER_EMAIL && days >= PAYMENT_CYCLE_DAYS && state.paymentStatus !== 'active') {
+      // 1. Check if pending approval
+      if (user.email !== TEACHER_EMAIL && userStatus === 'pending') {
         const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
         if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'Please contact the teacher.';
-        state.isPaymentBlocked = true;
+        state.isPendingApproval = true;
+        return true; // Still let them login, but the UI will block them
+      }
+
+      // 2. Check Payment Due Date (Only for approved users)
+      if (user.email !== TEACHER_EMAIL && userStatus === 'approved') {
+        const days = getDaysSince(userData.joinedDate);
+        if (days >= PAYMENT_CYCLE_DAYS && state.paymentStatus !== 'active') {
+          const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
+          if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'Please contact the teacher.';
+          state.isPaymentBlocked = true;
+        }
       }
     }
   } catch (e) { console.error("Security check failed", e); }
@@ -306,8 +319,8 @@ function getDaysSince(dateStr) {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-function isDue(dateStr, status) {
-  return getDaysSince(dateStr) >= PAYMENT_CYCLE_DAYS && status !== 'active';
+function isDue(dateStr, status, userStatus) {
+  return userStatus === 'approved' && getDaysSince(dateStr) >= PAYMENT_CYCLE_DAYS && status !== 'active';
 }
 
 // --- VIEWS ---
@@ -462,13 +475,19 @@ function teacherGateView(){
 
 function teacherView(){
   const activeUsers = state.allUsers.filter(u => !state.blockedEmails.includes(u.email));
-  const pendingPayments = activeUsers.filter(u => isDue(u.joinedDate, u.paymentStatus) && u.paymentStatus === 'pending');
-  const dueUsers = activeUsers.filter(u => isDue(u.joinedDate, u.paymentStatus) && u.paymentStatus !== 'pending');
+  const pendingUsers = activeUsers.filter(u => u.status === 'pending');
+  const pendingPayments = activeUsers.filter(u => isDue(u.joinedDate, u.paymentStatus, u.status) && u.paymentStatus === 'pending');
+  const dueUsers = activeUsers.filter(u => isDue(u.joinedDate, u.paymentStatus, u.status) && u.paymentStatus !== 'pending');
   
   let alertHtml = '';
+  if (pendingUsers.length > 0) {
+    alertHtml += `<div class="alert-banner" style="background:#1f3d4a;border-color:var(--accent);color:#fff;">
+      <div>👤 ${pendingUsers.length} student(s) waiting for approval!</div>
+    </div>`;
+  }
   if (pendingPayments.length > 0) {
     alertHtml += `<div class="alert-banner" style="background:#4a3d1f;border-color:var(--warn);color:#fff;">
-      <div>🟡 ${pendingPayments.length} student(s) waiting for approval!</div>
+      <div>🟡 ${pendingPayments.length} student(s) waiting for payment approval!</div>
     </div>`;
   }
   if (dueUsers.length > 0) {
@@ -505,17 +524,20 @@ function teacherView(){
 }
 
 function manageStudentsView(){
-  const activeUsers = state.allUsers.filter(u => !state.blockedEmails.includes(u.email));
+  const pendingUsers = state.allUsers.filter(u => u.status === 'pending' && !state.blockedEmails.includes(u.email));
+  const activeUsers = state.allUsers.filter(u => u.status === 'approved' && !state.blockedEmails.includes(u.email));
   const blockedUsers = state.allUsers.filter(u => state.blockedEmails.includes(u.email));
 
-  const renderUserRow = (u, isBlocked) => {
+  const renderUserRow = (u, type) => {
     const days = getDaysSince(u.joinedDate);
     const status = u.paymentStatus || 'active';
     const isOverdue = days >= PAYMENT_CYCLE_DAYS;
     
     let statusBadge = '';
-    if (isBlocked) {
+    if (type === 'blocked') {
       statusBadge = `<span style="color:var(--muted);font-size:12px">Blocked by Teacher</span>`;
+    } else if (type === 'pending') {
+      statusBadge = `<span style="color:var(--accent);font-size:12px;font-weight:bold">Awaiting Approval</span>`;
     } else if (isOverdue && status === 'pending') {
       statusBadge = `<span style="color:var(--warn);font-size:12px;font-weight:bold">🟡 PENDING PAYMENT (${days} days)</span>`;
     } else if (isOverdue && status !== 'active') {
@@ -527,13 +549,15 @@ function manageStudentsView(){
     return `
     <div style="padding:12px 0;border-bottom:1px solid var(--line)">
       <div class="row between" style="margin-bottom:6px;">
-        <strong style="font-size:14px;word-break:break-all;color:${isBlocked?'var(--muted)':'var(--txt)'}">${esc(u.email || 'Unknown')}</strong>
-        ${isBlocked 
+        <strong style="font-size:14px;word-break:break-all;color:${type==='blocked'?'var(--muted)':'var(--txt)'}">${esc(u.email || 'Unknown')}</strong>
+        ${type === 'blocked' 
           ? `<button class="ghost sm" data-act="unblock-user" data-email="${esc(u.email)}">Unblock</button>`
-          : `<div class="row">
-               ${isOverdue ? `<button class="renew sm" data-act="renew-user" data-uid="${u.uid}">Approve & Renew</button>` : ''}
-               <button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button>
-             </div>`
+          : type === 'pending'
+            ? `<button class="renew sm" data-act="approve-user" data-uid="${u.uid}">Approve</button>`
+            : `<div class="row">
+                ${isOverdue ? `<button class="renew sm" data-act="renew-user" data-uid="${u.uid}">Renew 60d</button>` : ''}
+                <button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">Block</button>
+              </div>`
         }
       </div>
       <div class="row between">
@@ -546,15 +570,22 @@ function manageStudentsView(){
   return `
   <div class="topbar"><button class="ghost sm" data-act="back-teacher">← Back</button><h2 style="margin:0">Students</h2></div>
   
+  ${pendingUsers.length ? `
+  <div class="card" style="border-color: var(--accent);">
+    <h3 style="color:var(--accent);margin-bottom:10px;">⏳ Pending Approvals</h3>
+    <p class="muted small" style="margin-bottom:12px">These students just created an account. Tap <b>Approve</b> once they have paid.</p>
+    ${pendingUsers.map(u => renderUserRow(u, 'pending')).join('')}
+  </div>` : ''}
+
   <div class="card">
     <h3 style="color:var(--accent);margin-bottom:10px;">Active Students</h3>
-    <p class="muted small" style="margin-bottom:12px">If a student pays, tap <b>Approve & Renew</b> to reset their timer and unlock their app for another 60 days.</p>
-    ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, false)).join('') : '<p class="muted">No active students.</p>'}
+    <p class="muted small" style="margin-bottom:12px">If a student pays their monthly fee, tap <b>Renew</b> to reset their 60-day timer.</p>
+    ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, 'active')).join('') : '<p class="muted">No active students.</p>'}
   </div>
 
   <div class="card" style="border-color: #4a2626;">
     <h3 style="color:var(--bad);margin-bottom:10px;">Blocked Students</h3>
-    ${blockedUsers.length ? blockedUsers.map(u => renderUserRow(u, true)).join('') : '<p class="muted">No blocked students.</p>'}
+    ${blockedUsers.length ? blockedUsers.map(u => renderUserRow(u, 'blocked')).join('') : '<p class="muted">No blocked students.</p>'}
   </div>`;
 }
 
@@ -565,6 +596,24 @@ function managePaymentDetailsView(){
     <p class="muted small">Type your Bank Account, Telebirr number, or payment instructions below. You can also paste a payment link (starting with http:// or https://) and it will become clickable for the students.</p>
     <textarea id="pay-details" placeholder="e.g. Telebirr: 0912345678&#10;Link: https://example.com/pay" style="min-height:150px;">${esc(state.paymentDetails || '')}</textarea>
     <button class="big" data-act="save-payment-details">Save Payment Details</button>
+  </div>`;
+}
+
+function pendingApprovalView(){
+  return `
+  <div class="payment-overlay">
+    <div class="payment-box" style="border-color:var(--accent)">
+      <div class="center" style="font-size:56px;margin-bottom:10px">⏳</div>
+      <h2 class="center" style="color:var(--accent);margin-bottom:10px;">Account Pending</h2>
+      <p class="center muted" style="margin-bottom:16px;">Your account was created successfully! Please complete the payment below and wait for the teacher to approve you.</p>
+      
+      <div style="background:var(--card2);border:1px dashed var(--accent);padding:16px;border-radius:12px;margin-bottom:24px;">
+        <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">Payment Details</div>
+        <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${linkify(state.paymentDetails || 'Please contact the teacher for payment details.')}</div>
+      </div>
+
+      <button class="big ghost" data-act="signout">Log out</button>
+    </div>
   </div>`;
 }
 
@@ -652,7 +701,14 @@ function render(){
     state.screen = 'home';
   }
 
-  if (state.isPaymentBlocked) {
+  // Handle Pending Approval Block
+  if (state.isPendingApproval && !isTeacher) {
+    app.innerHTML = pendingApprovalView() + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
+    return;
+  }
+
+  // Handle Payment Due Block
+  if (state.isPaymentBlocked && !isTeacher) {
     app.innerHTML = paymentBlockedView() + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
     return;
   }
@@ -802,6 +858,23 @@ document.addEventListener('click', async e => {
     return;
   }
 
+  if(act === 'approve-user') {
+    if(state.username !== TEACHER_EMAIL) return;
+    const targetUid = el.dataset.uid;
+    if(!confirm('Approve this student to start learning?')) return;
+    try {
+      await setDoc(doc(db, 'users', targetUid), { 
+        status: 'approved', 
+        joinedDate: new Date().toISOString(), 
+        paymentStatus: 'active' 
+      }, { merge: true });
+      flash('Student approved!');
+      await fetchAllUsers();
+      render();
+    } catch(e) { flash('Error approving user.'); }
+    return;
+  }
+
   if(act === 'renew-user') {
     if(state.username !== TEACHER_EMAIL) return;
     const targetUid = el.dataset.uid;
@@ -886,7 +959,14 @@ document.addEventListener('click', async e => {
     return;
   }
 
-  if(act === 'signout'){ await signOut(auth); state.teacherUnlocked = false; state.screen = 'auth'; state.isPaymentBlocked = false; return; }
+  if(act === 'signout'){ 
+    await signOut(auth); 
+    state.teacherUnlocked = false; 
+    state.screen = 'auth'; 
+    state.isPaymentBlocked = false; 
+    state.isPendingApproval = false;
+    return; 
+  }
   if(act === 'go-home'){ state.screen = 'home'; render(); return; }
   if(act === 'back-teacher'){ 
     if(state.username !== TEACHER_EMAIL) return;
@@ -903,7 +983,6 @@ document.addEventListener('click', async e => {
   if(act === 'quit-quiz'){ state.screen = 'level'; render(); return; }
   
   if(act === 'pick'){ 
-    // Just highlight the picked option. No immediate feedback.
     if(!state.quiz.done) {
       state.quiz.picked = Number(el.dataset.i); 
       render(); 
@@ -913,18 +992,14 @@ document.addEventListener('click', async e => {
   
   if(act === 'quiz-next'){
     const lv = getLevel(state.levelId); const qs = state.quiz;
-    
-    // Save the answer
     qs.answers[qs.i] = qs.picked;
     
     if(qs.i + 1 < lv.quiz.length){
-      // Go to next question
       qs.i++; 
       qs.picked = null; 
       render(); return;
     }
     
-    // Last question, calculate score
     let correctCount = 0;
     lv.quiz.forEach((q, idx) => {
         if(qs.answers[idx] === q.answer) correctCount++;
@@ -1030,8 +1105,6 @@ document.addEventListener('change', async e => {
   }
 });
 
-// --- SECURITY EVENT LISTENERS ---
-
 document.addEventListener('contextmenu', e => {
   if (state.username && state.username !== TEACHER_EMAIL) {
     e.preventDefault();
@@ -1068,11 +1141,19 @@ onAuthStateChanged(auth, async (user) => {
         let updates = {};
         if (!docSnap.data().joinedDate) updates.joinedDate = new Date().toISOString();
         if (!docSnap.data().email) updates.email = user.email;
+        if (!docSnap.data().status) updates.status = 'pending'; // Default existing accounts to pending
         
         if (Object.keys(updates).length > 0) await setDoc(docRef, updates, { merge: true });
         state.userProgress = docSnap.data().progress || {};
       } else {
-        await setDoc(docRef, { joinedDate: new Date().toISOString(), email: user.email, progress: {} });
+        // New user signup
+        await setDoc(docRef, { 
+            joinedDate: new Date().toISOString(), 
+            email: user.email, 
+            progress: {}, 
+            status: 'pending', 
+            paymentStatus: 'active' 
+        });
         state.userProgress = {};
       }
     } catch (e) { state.userProgress = {}; }
@@ -1080,7 +1161,9 @@ onAuthStateChanged(auth, async (user) => {
     await loadCloudLevels();
     state.screen = 'home'; state.loading = false; render();
   } else {
-    state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; state.isPaymentBlocked = false; 
+    state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; 
+    state.isPaymentBlocked = false; 
+    state.isPendingApproval = false;
     document.body.classList.remove('student-mode');
     render();
   }
