@@ -181,7 +181,7 @@ const DEFAULT_LEVELS = [
   {
     id: 'lv1', title: 'ደረጃ 1 · የእስልምና አምስቱ ምሰሶዎች',
     items: [{ type:'text', text:'እስልምና በአምስት ምሰሶዎች ላይ የተመሰረተ ነው።' }],
-    quiz: [{ q:'ስንት ምሰሶዎች አሉ?', options:['ሶስት','አምስት','ሰባት'], answer:1, imageUrl:'' }]
+    quiz: [{ q:'ስንት ምሰሶዎች አሉ?', options:[{text:'ሶስት',audioUrl:''},{text:'አምስት',audioUrl:''},{text:'ሰባት',audioUrl:''}], answer:1, imageUrl:'' }]
   }
 ];
 
@@ -433,12 +433,18 @@ function quizView(){
   
   const q = lv.quiz[qs.i];
   
-  const opts = q.options.map((o, i) => {
+  // Handle old string options and new object options
+  const opts = q.options.map((opt, i) => {
+    const o = typeof opt === 'string' ? { text: opt, audioUrl: '' } : opt;
     let cls = 'opt';
     if(qs.picked === i) cls += ' picked';
-    return `<button class="${cls}" data-act="pick" data-i="${i}">
-      <span class="key">${['ሀ','ለ','ሐ','መ','ሠ','ረ'][i]}</span><span>${esc(o)}</span>
-    </button>`;
+    return `<div class="${cls}" data-act="pick" data-i="${i}" style="cursor:pointer;">
+      <span class="key">${['ሀ','ለ','ሐ','መ','ሠ','ረ'][i]}</span>
+      <div style="flex:1; display:flex; flex-direction:column; gap:8px; pointer-events:none; text-align:left;">
+        ${o.text ? `<span style="font-size:15px;">${esc(o.text)}</span>` : ''}
+        ${o.audioUrl ? `<div style="pointer-events:auto;" onclick="event.stopPropagation()"><audio controls src="${o.audioUrl}" style="height:32px; max-width:100%;"></audio></div>` : ''}
+      </div>
+    </div>`;
   }).join('');
   
   let imageHtml = '';
@@ -653,11 +659,23 @@ function itemEditor(it, i){
 }
 
 function questionEditor(q, qi){
+  // Convert old string options to objects to support audio
+  if(q.options && q.options.length && typeof q.options[0] === 'string') {
+    q.options = q.options.map(o => ({ text: o, audioUrl: '' }));
+  }
+
   const opts = q.options.map((o, oi) => `
-    <div class="row" style="margin-bottom:6px">
-      <input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}>
-      <input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o)}" placeholder="አማራጭ ${['ሀ','ለ','ሐ','መ','ሠ','ረ'][oi]}">
-    </div>`).join('');
+    <div style="margin-bottom:12px; border-bottom:1px solid var(--line); padding-bottom:8px;">
+      <div class="row" style="margin-bottom:6px">
+        <input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}>
+        <input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o.text)}" placeholder="የጽሑፍ አማራጭ">
+      </div>
+      <div class="row">
+        <input type="file" data-upload-qopt-audio="${qi}" data-oi="${oi}" accept="audio/*" style="margin:0; padding:6px; font-size:12px;">
+        ${o.audioUrl ? `<span class="small" style="color:var(--accent);margin-left:8px;">✅ ድምጽ ተያይዟል</span>` : ''}
+      </div>
+    </div>
+  `).join('');
 
   return `<div class="edit-box">
     <div class="row between" style="margin-bottom:6px">
@@ -666,7 +684,7 @@ function questionEditor(q, qi){
     </div>
     <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}" placeholder="የጥያቄ ጽሑፍ">
     <label>አማራጭ ምስል</label><input type="file" data-upload-qimage="${qi}" accept="image/*">
-    <div class="muted small" style="margin:12px 0 4px;font-weight:bold;color:var(--accent)">ትክክለኛውን መልስ ይምረጡ፡</div>
+    <div class="muted small" style="margin:12px 0 4px;font-weight:bold;color:var(--accent)">ትክክለኛውን መልስ ይምረጡ፡ (ድምጽም ማያያዝ ይችላሉ)</div>
     ${opts}
     <div class="row wrap" style="margin-top:8px">
       <button class="ghost sm" data-act="add-option" data-qi="${qi}">+ አማራጭ ጨምር</button>
@@ -809,7 +827,7 @@ document.addEventListener('click', async e => {
   if(act === 'add-option') {
     const qi = Number(el.dataset.qi);
     if(state.editing.quiz[qi].options.length < 6) {
-      state.editing.quiz[qi].options.push('');
+      state.editing.quiz[qi].options.push({text:'',audioUrl:''});
       render();
     } else { flash('ቢያንስ 6 አማራጮች ብቻ ይፈቀዳሉ'); }
     return;
@@ -1048,7 +1066,7 @@ document.addEventListener('click', async e => {
   }
   if(act === 'add-q'){ 
     if(state.username !== TEACHER_EMAIL) return;
-    state.editing.quiz.push({ q:'', options:['','','',''], answer:0, imageUrl:'' }); render(); return; 
+    state.editing.quiz.push({ q:'', options:[{text:'',audioUrl:''},{text:'',audioUrl:''},{text:'',audioUrl:''},{text:'',audioUrl:''}], answer:0, imageUrl:'' }); render(); return; 
   }
   if(act === 'del-q'){ 
     if(state.username !== TEACHER_EMAIL) return;
@@ -1057,7 +1075,7 @@ document.addEventListener('click', async e => {
   if(act === 'save-level'){
     if(state.username !== TEACHER_EMAIL) return;
     const lv = state.editing; if(!lv.title.trim()) return flash('ርዕስ ያስፈልጋል');
-    lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.filter(o => o.trim()).length >= 2);
+    lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.some(o => o.text.trim() || o.audioUrl));
     state.uploading = true; render();
     const updated = [...state.levels]; const idx = updated.findIndex(l => l.id === lv.id);
     if(idx >= 0) updated[idx] = lv; else updated.push(lv);
@@ -1072,7 +1090,7 @@ document.addEventListener('input', e => {
   if(t.dataset.field === 'item-text') state.editing.items[Number(t.dataset.i)].text = t.value;
   if(t.dataset.field === 'item-url') state.editing.items[Number(t.dataset.i)].url = t.value;
   if(t.dataset.field === 'q-text') state.editing.quiz[Number(t.dataset.qi)].q = t.value;
-  if(t.dataset.field === 'q-opt') state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)] = t.value;
+  if(t.dataset.field === 'q-opt') state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)].text = t.value;
 });
 
 document.addEventListener('change', async e => {
@@ -1086,6 +1104,19 @@ document.addEventListener('change', async e => {
       const url = await uploadToCloudinary(file);
       state.editing.quiz[Number(t.dataset.uploadQimage)].imageUrl = url;
       state.uploading = false; render(); flash('ምስል ተሰቅሏል');
+    } catch(err) { state.uploading = false; render(); flash('መስቀል አልተቻለም'); }
+    return;
+  }
+
+  if(t.dataset.uploadQoptAudio !== undefined && state.editing){
+    const qi = Number(t.dataset.uploadQoptAudio);
+    const oi = Number(t.dataset.oi);
+    const file = t.files && t.files[0]; if(!file) return;
+    state.uploading = true; render();
+    try {
+      const url = await uploadToCloudinary(file);
+      state.editing.quiz[qi].options[oi].audioUrl = url;
+      state.uploading = false; render(); flash('ድምጽ ተሰቅሏል');
     } catch(err) { state.uploading = false; render(); flash('መስቀል አልተቻለም'); }
     return;
   }
