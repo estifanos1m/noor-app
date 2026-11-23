@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b3d3b">
-<title>ኑር — የእስልምና ትምህርት</title>
+<title>Noor — Islamic Learning</title>
 
 <!-- App Icons (Alif Design) -->
 <link rel="manifest" href="manifest.json">
@@ -177,11 +177,306 @@ const K_SETTINGS = 'noor_settings_v1';
 const TEACHER_EMAIL = 'yasinmubarek75@gmail.com';
 const PAYMENT_CYCLE_DAYS = 60; 
 
+const translations = {
+  am: {
+    appName: 'ኑር',
+    tagline: 'ተማር · ደረጃ ከፍ አድርግ · አድግ',
+    login: 'ግባ',
+    signup: 'አካውንት ፍጠር',
+    name: 'ስም / የተጠቃሚ ስም',
+    namePlaceholder: 'ለምሳሌ፡ yasin',
+    emailNotice: '@gmail.com በራሱ ይጨመራል።',
+    password: 'የይለፍ ቃል',
+    passPlaceholder: 'ቢያንስ 6 ፊደሎች',
+    confirmPass: 'የይለፍ ቃል አረጋግጥ',
+    confirmPassPlaceholder: 'የይለፍ ቃል ድገም',
+    createAccount: 'አካውንቴን ፍጠር',
+    welcome: 'አሰላሙ አለይኩም',
+    yourProgress: 'የእርስዎ እድገት',
+    levelsCount: 'ደረጃዎች',
+    passed: 'አልፏል',
+    ready: 'ለመጀመር ተዘጋጅቷል',
+    locked: 'ተቆልፏል',
+    exit: 'ውጣ',
+    install: 'ጫን',
+    installed: 'ተጭኗል',
+    back: 'ተመለስ',
+    startTest: 'ፈተናውን ጀምር',
+    retakeTest: 'ፈተናውን በድጋሚ ውሰድ',
+    levelComplete: 'ደረጃው ተጠናቋል!',
+    youFailed: 'አላለፉም',
+    correct: 'ትክክል',
+    passMark: 'ማለፊያ ነጥብ',
+    continueNext: 'ወደ ቀጣዩ ደረጃ ይሂዱ →',
+    allLevelsDone: 'ሁሉንም ደረጃዎች ጨርሰዋል!',
+    reviewAndTry: 'እባክዎ ትምህርቱን ይገምግሙ እና እንደገና ይሞክሩ።',
+    tryAgain: 'እንደገና ሞክር',
+    backToLevels: 'ወደ ደረጃዎች ተመለስ',
+    question: 'ጥያቄ',
+    nextQ: 'ቀጣይ ጥያቄ',
+    submitTest: 'ፈተናውን አስገባ',
+    teacherAccess: 'የመምህር መግቢያ',
+    pin: 'ፒን',
+    unlock: 'ክፈት',
+    teacherPanel: 'የመምህር ፓነል',
+    pendingApprovals: 'ተማሪ(ዎች) ማረጋገጫ በመጠባበቅ ላይ!',
+    pendingPayments: 'ተማሪ(ዎች) የክፍያ ማረጋገጫ በመጠባበቅ ላይ!',
+    lockedDue: 'ተማሪ(ዎች) ተቆልፈዋል (ክፍያ ይጠበቃል)።',
+    tools: 'መሳሪያዎች',
+    manageStudents: 'ተማሪዎችን እና ክፍያዎችን ያስተዳድሩ',
+    setPaymentDetails: 'የክፍያ ዝርዝሮችን ያስቀምጡ',
+    levels: 'ደረጃዎች',
+    newLevel: '+ አዲስ ደረጃ',
+    edit: 'አስተካክል',
+    settings: 'ቅንብሮች',
+    passMarkPercent: 'ማለፊያ ነጥብ (%)',
+    teacherPin: 'የመምህር ፒን',
+    saveSettings: 'ቅንብሮችን አስቀምጥ',
+    students: 'ተማሪዎች',
+    pendingApprovalsList: '⏳ በመጠባበቅ ላይ ያሉ ማረጋገጫዎች',
+    pendingDesc: 'እነዚህ ተማሪዎች አሁን አካውንት ፈጥረዋል። ከከፈሉ በኋላ አጽድቅ የሚለውን ይጫኑ።',
+    approve: 'አጽድቅ',
+    activeStudents: 'ንቁ ተማሪዎች',
+    activeDesc: 'አንድ ተማሪ ወርሃዊ ክፍያውን ሲከፍል የ60 ቀን ቆጣሪውን ለመጀመር አድስ የሚለውን ይጫኑ።',
+    noActive: 'ንቁ ተማሪዎች የሉም።',
+    blockedStudents: 'የታገዱ ተማሪዎች',
+    noBlocked: 'የታገዱ ተማሪዎች የሉም።',
+    unblock: 'ክፍት አድርግ',
+    block: 'አግድ',
+    renew60: 'ለ60 ቀናት አድስ',
+    blockedByTeacher: 'በመምህሩ ታግዷል',
+    awaitingApproval: 'ማረጋገጫ በመጠባበቅ ላይ',
+    paymentPending: '🟡 ክፍያ በመጠባበቅ ላይ',
+    lockedNotPaid: '⚠️ ተቆልፏል - አልተከፈለም',
+    active: 'ንቁ',
+    days: 'ቀናት',
+    joined: 'የተቀላቀሉበት፡',
+    unknown: 'ያልታወቀ',
+    payDetails: 'የክፍያ ዝርዝሮች',
+    payDesc: 'የባንክ አካውንትዎን፣ የቴሌብር ቁጥርዎን ወይም የክፍያ መመሪያዎችን ከዚህ በታች ይተይቡ። በተጨማሪም የክፍያ ሊንክ መለጠፍ ይችላሉ (በ http:// ወይም https:// የሚጀምር) እና ለተማሪዎች ተጭነው የሚከፈት ይሆናል።',
+    payPlaceholder: 'ለምሳሌ፡ ቴሌብር፡ 0912345678\nሊንክ፡ https://example.com/pay',
+    savePayDetails: 'የክፍያ ዝርዝሮችን አስቀምጥ',
+    accountPending: 'አካውንት በመጠባበቅ ላይ',
+    accountPendingDesc: 'አካውንትዎ በተሳካ ሁኔታ ተፈጥሯል! እባክዎ ከታች ያለውን ክፍያ ይፈጽሙ እና መምህሩ እስኪያጸድቁዎት ይጠብቁ።',
+    logout: 'ውጣ',
+    paymentWaiting: 'ክፍያ በመጠባበቅ ላይ',
+    paymentWaitingDesc: 'እንደከፈሉ ምልክት አድርገዋል። እባክዎ መምህሩ አረጋግጠው አካውንትዎን እስኪከፍቱ ይጠብቁ።',
+    appLocked: 'መተግበሪያው ተቆልፏል',
+    appLockedDesc: 'የ60 ቀን ምዝገባዎ አልቋል። እባክዎ መማርዎን ለመቀጠል ይክፈሉ።',
+    iPaid: 'ከፍያለሁ',
+    howToInstall: 'እንዴት እንደሚጫኑ',
+    iosInstall: '<p><strong>በiPhone (Safari) ላይ፡</strong></p><p>1. ከታች ያለውን የ<strong>አጋራ (Share)</strong> ምልክት ይጫኑ።</p><p>2. ወደታች ወርደው <strong>"Add to Home Screen"</strong> የሚለውን ይጫኑ።</p>',
+    androidInstall: '<p><strong>በAndroid / ኮምፒውተር ላይ፡</strong></p><p>1. የብራውዘር ምናሌውን <strong>(3 ነጥቦች)</strong> ይጫኑ።</p><p>2. <strong>"Install app"</strong> ወይም <strong>"Add to Home Screen"</strong> የሚለውን ይፈልጉ እና ይጫኑት።</p>',
+    gotIt: 'ገባኝ',
+    screenHidden: 'ስክሪኑ ተደብቋል',
+    screenHiddenDesc: 'እባክዎ ወደ መተግበሪያው ይመለሱ። ስክሪን መቅረጽ ወይም መተግበሪያ መቀየር አይፈቀድም።',
+    uploading: 'በመስቀል ላይ...',
+    errorApprove: 'ተማሪውን ማጽደቅ አልተቻለም።',
+    errorRenew: 'እንደገና ማስጀመር አልተቻለም።',
+    errorBlock: 'ተጠቃሚውን ማገድ አልተቻለም።',
+    errorUnblock: 'ተጠቃሚውን ክፍት ማድረግ አልተቻለም።',
+    successApprove: 'ተማሪው ጸድቋል!',
+    successRenew: 'ተማሪው ተከፍቶ እንደገና ተጀምሯል!',
+    successBlock: 'ተጠቃሚው ታግዷል።',
+    successUnblock: 'ተጠቃሚው ክፍት ሆኗል።',
+    successSettings: 'ቅንብሮች ተቀምጠዋል',
+    successPayDetails: 'የክፍያ ዝርዝሮች ተቀምጠዋል!',
+    successLevelSave: 'ተቀምጧል!',
+    successFileUpload: 'ፋይል ተሰቅሏል',
+    errorFileUpload: 'መስቀል አልተቻለም',
+    maxOptions: 'ቢያንስ 6 አማራጮች ብቻ ይፈቀዳሉ',
+    minOptions: 'ቢያንስ 2 አማራጮች መኖር አለባቸው',
+    titleRequired: 'ርዕስ ያስፈልጋል',
+    invalidName: 'እባክዎ ትክክለኛ ስም ያስገቡ።',
+    passTooShort: 'የይለፍ ቃሉ በጣም አጭር ነው።',
+    passMismatch: 'የይለፍ ቃላቱ አይመሳሰሉም',
+    wrongCreds: 'የተሳሳተ ስም/የይለፍ ቃል',
+    connecting: 'በመገናኘት ላይ...',
+    accessDenied: 'መዳረሻ ተከልክሏል',
+    wrongPin: 'የተሳሳተ ፒን',
+    confirmApprove: 'ይህ ተማሪ እንዲጀምር ያጽድቁ?',
+    confirmRenew: 'ክፍያውን አጽድቀው ለ60 ቀናት ይክፈቱለት?',
+    confirmBlock: 'ማገድ ይፈልጋሉ?',
+    confirmUnblock: 'ክፍት ማድረግ ይፈልጋሉ?',
+    confirmDelete: 'ይህን ደረጃ እና ሁሉንም ይዘቱን ይሰርዙ?',
+    confirmPayment: 'ክፍያውን ጨርሰዋል? መምህሩ አረጋግጠው አካውንትዎን ይከፍቱልዎታል።',
+    text: 'ጽሑፍ',
+    video: 'ቪዲዮ',
+    image: 'ምስል',
+    audio: 'ድምጽ',
+    addText: '+ ጽሑፍ',
+    addVideo: '+ ቪዲዮ',
+    addImage: '+ ምስል',
+    editLevel: 'ደረጃ አስተካክል',
+    levelTitle: 'የደረጃው ርዕስ',
+    questions: 'ጥያቄዎች',
+    addQuestion: '+ ጥያቄ ጨምር',
+    questionText: 'የጥያቄ ጽሑፍ',
+    optionalImage: 'አማራጭ ምስል',
+    selectCorrect: 'ትክክለኛውን መልስ ይምረጡ፡ (ድምጽም ማያያዝ ይችላሉ)',
+    addOption: '+ አማራጭ ጨምር',
+    removeOption: '✕ የመጨረሻውን አማራጭ አስወግድ',
+    audioAttached: '✅ ድምጽ ተያይዟል',
+    textOption: 'የጽሑፍ አማራጭ',
+    saveLevel: '💾 ደረጃውን አስቀምጥ',
+    loading: 'በመጫን ላይ...',
+    toggleLang: 'English',
+    lvl: 'ደረጃ',
+    q: 'ጥያቄ'
+  },
+  en: {
+    appName: 'Noor',
+    tagline: 'Learn · Level up · Grow',
+    login: 'Sign In',
+    signup: 'Create Account',
+    name: 'Name / Username',
+    namePlaceholder: 'e.g. yasin',
+    emailNotice: '@gmail.com will be added automatically.',
+    password: 'Password',
+    passPlaceholder: 'At least 6 characters',
+    confirmPass: 'Confirm Password',
+    confirmPassPlaceholder: 'Repeat password',
+    createAccount: 'Create my account',
+    welcome: 'Assalamu alaykum',
+    yourProgress: 'Your Progress',
+    levelsCount: 'Levels',
+    passed: 'Passed',
+    ready: 'Ready to start',
+    locked: 'Locked',
+    exit: 'Exit',
+    install: 'Install',
+    installed: 'Installed',
+    back: 'Back',
+    startTest: 'Start Test',
+    retakeTest: 'Retake Test',
+    levelComplete: 'Level complete!',
+    youFailed: 'You did not pass',
+    correct: 'correct',
+    passMark: 'pass mark',
+    continueNext: 'Continue to next level →',
+    allLevelsDone: 'You have finished all levels!',
+    reviewAndTry: 'Please review the lesson and try again.',
+    tryAgain: 'Try again',
+    backToLevels: 'Back to levels',
+    question: 'Question',
+    nextQ: 'Next Question',
+    submitTest: 'Submit Test',
+    teacherAccess: 'Teacher Access',
+    pin: 'PIN',
+    unlock: 'Unlock',
+    teacherPanel: 'Teacher Panel',
+    pendingApprovals: 'student(s) waiting for approval!',
+    pendingPayments: 'student(s) waiting for payment approval!',
+    lockedDue: 'student(s) are locked (Payment Due).',
+    tools: 'Tools',
+    manageStudents: 'Manage Students & Payments',
+    setPaymentDetails: 'Set Payment Details',
+    levels: 'Levels',
+    newLevel: '+ New level',
+    edit: 'Edit',
+    settings: 'Settings',
+    passMarkPercent: 'Pass mark (%)',
+    teacherPin: 'Teacher PIN',
+    saveSettings: 'Save settings',
+    students: 'Students',
+    pendingApprovalsList: '⏳ Pending Approvals',
+    pendingDesc: 'These students just created an account. Tap Approve once they have paid.',
+    approve: 'Approve',
+    activeStudents: 'Active Students',
+    activeDesc: 'If a student pays their monthly fee, tap Renew to reset their 60-day timer.',
+    noActive: 'No active students.',
+    blockedStudents: 'Blocked Students',
+    noBlocked: 'No blocked students.',
+    unblock: 'Unblock',
+    block: 'Block',
+    renew60: 'Renew 60d',
+    blockedByTeacher: 'Blocked by Teacher',
+    awaitingApproval: 'Awaiting Approval',
+    paymentPending: '🟡 PENDING PAYMENT',
+    lockedNotPaid: '⚠️ LOCKED - NOT PAID',
+    active: 'Active',
+    days: 'days',
+    joined: 'Joined:',
+    unknown: 'Unknown',
+    payDetails: 'Payment Details',
+    payDesc: 'Type your Bank Account, Telebirr number, or payment instructions below. You can also paste a payment link (starting with http:// or https://) and it will become clickable for the students.',
+    payPlaceholder: 'e.g. Telebirr: 0912345678\nLink: https://example.com/pay',
+    savePayDetails: 'Save Payment Details',
+    accountPending: 'Account Pending',
+    accountPendingDesc: 'Your account was created successfully! Please complete the payment below and wait for the teacher to approve you.',
+    logout: 'Log out',
+    paymentWaiting: 'Payment Pending',
+    paymentWaitingDesc: 'You have marked this as paid. Please wait for the teacher to verify and unlock your account.',
+    appLocked: 'App Locked',
+    appLockedDesc: 'Your 60-day subscription has ended. Please pay to continue learning.',
+    iPaid: 'I Have Paid',
+    howToInstall: 'How to Install',
+    iosInstall: '<p><strong>On iPhone (Safari):</strong></p><p>1. Tap the <strong>Share button</strong>.</p><p>2. Scroll down and tap <strong>"Add to Home Screen"</strong>.</p>',
+    androidInstall: '<p><strong>On Android / Desktop:</strong></p><p>1. Tap the browser menu <strong>(3 dots)</strong>.</p><p>2. Look for <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong> and tap it.</p>',
+    gotIt: 'Got it',
+    screenHidden: 'Screen Hidden',
+    screenHiddenDesc: 'Please return to the app. Screen recording or switching apps is not allowed.',
+    uploading: 'Uploading...',
+    errorApprove: 'Error approving user.',
+    errorRenew: 'Error renewing user.',
+    errorBlock: 'Error blocking user.',
+    errorUnblock: 'Error unblocking user.',
+    successApprove: 'Student approved!',
+    successRenew: 'Student unlocked & renewed!',
+    successBlock: 'User blocked.',
+    successUnblock: 'User unblocked.',
+    successSettings: 'Settings saved',
+    successPayDetails: 'Payment details saved!',
+    successLevelSave: 'Saved!',
+    successFileUpload: 'File uploaded',
+    errorFileUpload: 'Upload failed',
+    maxOptions: 'Maximum 6 options allowed',
+    minOptions: 'Must have at least 2 options',
+    titleRequired: 'Title required',
+    invalidName: 'Please enter a valid name.',
+    passTooShort: 'Password too short.',
+    passMismatch: 'Passwords do not match',
+    wrongCreds: 'Wrong name/password',
+    connecting: 'Connecting...',
+    accessDenied: 'Access Denied',
+    wrongPin: 'Wrong PIN',
+    confirmApprove: 'Approve this student to start learning?',
+    confirmRenew: 'Approve payment and unlock this student for 60 days?',
+    confirmBlock: 'Block this user?',
+    confirmUnblock: 'Unblock this user?',
+    confirmDelete: 'Delete this level and all its content?',
+    confirmPayment: 'Have you completed the payment? The teacher will verify and unlock your account.',
+    text: 'Text',
+    video: 'Video',
+    image: 'Image',
+    audio: 'Audio',
+    addText: '+ Text',
+    addVideo: '+ Video',
+    addImage: '+ Image',
+    editLevel: 'Edit Level',
+    levelTitle: 'Level title',
+    questions: 'Questions',
+    addQuestion: '+ Add question',
+    questionText: 'Question text',
+    optionalImage: 'Optional Image',
+    selectCorrect: 'Select the correct answer: (You can also attach audio)',
+    addOption: '+ Add Option',
+    removeOption: '✕ Remove Last Option',
+    audioAttached: '✅ Audio attached',
+    textOption: 'Text option',
+    saveLevel: '💾 Save level',
+    loading: 'Loading...',
+    toggleLang: 'አማርኛ',
+    lvl: 'Level',
+    q: 'Q'
+  }
+};
+
 const DEFAULT_LEVELS = [
   {
-    id: 'lv1', title: 'ደረጃ 1 · የእስልምና አምስቱ ምሰሶዎች',
-    items: [{ type:'text', text:'እስልምና በአምስት ምሰሶዎች ላይ የተመሰረተ ነው።' }],
-    quiz: [{ q:'ስንት ምሰሶዎች አሉ?', options:[{text:'ሶስት',audioUrl:''},{text:'አምስት',audioUrl:''},{text:'ሰባት',audioUrl:''}], answer:1, imageUrl:'' }]
+    id: 'lv1', title_am: 'ደረጃ 1 · የእስልምና አምስቱ ምሰሶዎች', title_en: 'Level 1 · The Five Pillars of Islam',
+    items: [{ type:'text', text_am:'እስልምና በአምስት ምሰሶዎች ላይ የተመሰረተ ነው።', text_en:'Islam is built upon five pillars.' }],
+    quiz: [{ q_am:'ስንት ምሰሶዎች አሉ?', q_en:'How many pillars are there?', options:[{text_am:'ሶስት',text_en:'Three',audioUrl:''},{text_am:'አምስት',text_en:'Five',audioUrl:''},{text_am:'ሰባት',text_en:'Seven',audioUrl:''}], answer:1, imageUrl:'' }]
   }
 ];
 
@@ -215,8 +510,13 @@ let state = {
   flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
   isPaymentBlocked: false, isPendingApproval: false, paymentStatus: 'active', userJoinedDate: null,
-  isAppBlurred: false, showInstallGuide: false
+  isAppBlurred: false, showInstallGuide: false,
+  lang: localStorage.getItem('noor_lang') || 'am'
 };
+
+function t(key) {
+  return translations[state.lang][key] || key;
+}
 
 const getSettings = () => { try { const v = localStorage.getItem(K_SETTINGS); return v ? JSON.parse(v) : { pin:'1234', passMark:80 }; } catch(e) { return { pin:'1234', passMark:80 }; } };
 const setSettings = s => localStorage.setItem(K_SETTINGS, JSON.stringify(s));
@@ -259,7 +559,7 @@ async function checkSecurityAndPayments(user) {
       const blockedEmails = blockSnap.data().emails || [];
       if (blockedEmails.includes(user.email)) {
         await signOut(auth);
-        alert("አካውንትዎ በመምህሩ ታግዷል።");
+        alert(t('errorBlock'));
         return false;
       }
     }
@@ -273,7 +573,7 @@ async function checkSecurityAndPayments(user) {
 
       if (user.email !== TEACHER_EMAIL && userStatus === 'pending') {
         const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
-        if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'እባክዎ መምህሩን ያግኙ።';
+        if (paySnap.exists()) state.paymentDetails = paySnap.data().text || t('contactTeacher');
         state.isPendingApproval = true;
         return true; 
       }
@@ -282,7 +582,7 @@ async function checkSecurityAndPayments(user) {
         const days = getDaysSince(userData.joinedDate);
         if (days >= PAYMENT_CYCLE_DAYS && state.paymentStatus !== 'active') {
           const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
-          if (paySnap.exists()) state.paymentDetails = paySnap.data().text || 'እባክዎ መምህሩን ያግኙ።';
+          if (paySnap.exists()) state.paymentDetails = paySnap.data().text || t('contactTeacher');
           state.isPaymentBlocked = true;
         }
       }
@@ -324,21 +624,24 @@ function isDue(dateStr, status, userStatus) {
 // --- VIEWS ---
 function authView(){
   return `
-  <div class="hero"><div class="logo">🕌</div><h1>ኑር</h1><p class="muted">ተማር · ደረጃ ከፍ አድርግ · አድግ</p></div>
+  <div class="row" style="justify-content:flex-end; padding-bottom:10px;">
+    <button class="ghost sm" data-act="toggle-lang" style="font-size:14px;">🌐 ${t('toggleLang')}</button>
+  </div>
+  <div class="hero"><div class="logo">🕌</div><h1>${t('appName')}</h1><p class="muted">${t('tagline')}</p></div>
   <div class="card">
     <div class="tabs">
-      <button data-act="auth-mode" data-mode="signin" class="${state.authMode==='signin'?'on':''}">ግባ</button>
-      <button data-act="auth-mode" data-mode="signup" class="${state.authMode==='signup'?'on':''}">አካውንት ፍጠር</button>
+      <button data-act="auth-mode" data-mode="signin" class="${state.authMode==='signin'?'on':''}">${t('login')}</button>
+      <button data-act="auth-mode" data-mode="signup" class="${state.authMode==='signup'?'on':''}">${t('signup')}</button>
     </div>
-    <label>ስም / የተጠቃሚ ስም</label>
-    <input id="auth-user" type="text" placeholder="ለምሳሌ፡ yasin" autocomplete="username">
-    <p class="muted small" style="margin-top:-6px;margin-bottom:12px;">@gmail.com በራሱ ይጨመራል።</p>
+    <label>${t('name')}</label>
+    <input id="auth-user" type="text" placeholder="${t('namePlaceholder')}" autocomplete="username">
+    <p class="muted small" style="margin-top:-6px;margin-bottom:12px;">${t('emailNotice')}</p>
     
-    <label>የይለፍ ቃል</label>
-    <input id="auth-pass" type="password" placeholder="ቢያንስ 6 ፊደሎች">
+    <label>${t('password')}</label>
+    <input id="auth-pass" type="password" placeholder="${t('passPlaceholder')}">
     
-    ${state.authMode==='signup' ? `<label>የይለፍ ቃል አረጋግጥ</label><input id="auth-pass2" type="password" placeholder="የይለፍ ቃል ድገም">` : ''}
-    <button class="big" data-act="auth-submit" id="btn-auth">${state.authMode==='signin' ? 'ግባ' : 'አካውንቴን ፍጠር'}</button>
+    ${state.authMode==='signup' ? `<label>${t('confirmPass')}</label><input id="auth-pass2" type="password" placeholder="${t('confirmPassPlaceholder')}">` : ''}
+    <button class="big" data-act="auth-submit" id="btn-auth">${state.authMode==='signin' ? t('login') : t('createAccount')}</button>
   </div>`;
 }
 
@@ -349,16 +652,17 @@ function homeView(){
   const cards = levels.map((lv, i) => {
     const unlocked = isUnlocked(i, state.userProgress);
     const prog = state.userProgress?.[lv.id];
-    const status = prog?.passed ? `አልፏል · ${prog.score}%` : unlocked ? 'ለመጀመር ተዘጋጅቷል' : 'ተቆልፏል';
+    const title = state.lang === 'am' ? (lv.title_am || lv.title) : (lv.title_en || lv.title);
+    const status = prog?.passed ? `${t('passed')} · ${prog.score}%` : unlocked ? t('ready') : t('locked');
     return `<div class="level ${unlocked?'':'locked'}" ${unlocked?`data-act="open-level" data-id="${lv.id}"`:''}>
-        <div class="lv-num">${i+1}</div><div class="meta"><h3>${esc(lv.title)}</h3><p>${status}</p></div>
+        <div class="lv-num">${i+1}</div><div class="meta"><h3>${esc(title)}</h3><p>${status}</p></div>
         <div class="badge">${prog?.passed ? '✅' : unlocked ? '▶️' : '🔒'}</div>
       </div>`;
   }).join('');
 
   const installBtnHtml = state.isStandalone 
-    ? `<button class="ghost sm" data-act="install-app" style="color:var(--muted);border-color:var(--line)">✅ ተጭኗል</button>`
-    : `<button class="ghost sm" data-act="install-app" style="color:var(--warn);border-color:var(--warn)">📲 ጫን</button>`;
+    ? `<button class="ghost sm" data-act="install-app" style="color:var(--muted);border-color:var(--line)">✅ ${t('installed')}</button>`
+    : `<button class="ghost sm" data-act="install-app" style="color:var(--warn);border-color:var(--warn)">📲 ${t('install')}</button>`;
 
   const teacherBtnHtml = state.username === TEACHER_EMAIL 
     ? `<button class="ghost sm" data-act="teacher-open">👩‍🏫</button>` 
@@ -366,13 +670,14 @@ function homeView(){
 
   return `
   <div class="topbar">
-    <div style="flex:1;min-width:0"><p class="muted small" style="margin:0">አሰላሙ አለይኩም</p><h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2></div>
+    <div style="flex:1;min-width:0"><p class="muted small" style="margin:0">${t('welcome')}</p><h2 style="margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(state.username)}</h2></div>
+    <button class="ghost sm" data-act="toggle-lang" style="font-size:14px;">🌐 ${t('toggleLang')}</button>
     ${installBtnHtml}
     ${teacherBtnHtml}
-    <button class="ghost sm" data-act="signout">ውጣ</button>
+    <button class="ghost sm" data-act="signout">${t('exit')}</button>
   </div>
   <div class="card">
-    <div class="row between"><strong>የእርስዎ እድገት</strong><span class="muted small">${passed} / ${levels.length} ደረጃዎች</span></div>
+    <div class="row between"><strong>${t('yourProgress')}</strong><span class="muted small">${passed} / ${levels.length} ${t('levelsCount')}</span></div>
     <div class="progress"><div style="width:${pct}%"></div></div>
   </div>
   ${cards}`;
@@ -380,8 +685,12 @@ function homeView(){
 
 function levelView(){
   const lv = getLevel(state.levelId);
+  const title = state.lang === 'am' ? (lv.title_am || lv.title) : (lv.title_en || lv.title);
   const items = (lv.items || []).map(it => {
-    if(it.type === 'text') return `<p class="lesson-text">${esc(it.text).replace(/\n/g,'<br>')}</p>`;
+    if(it.type === 'text') {
+      const txt = state.lang === 'am' ? (it.text_am || it.text) : (it.text_en || it.text);
+      return `<p class="lesson-text">${esc(txt).replace(/\n/g,'<br>')}</p>`;
+    }
     if(it.url){
       if(it.type === 'video'){
         const id = ytId(it.url);
@@ -394,7 +703,7 @@ function levelView(){
       if(it.type === 'image') {
         return `<div class="media" data-act="fullscreen-img" data-url="${esc(it.url)}">
           <img src="${esc(it.url)}" alt="">
-          <div class="fullscreen-hint">ለማስፋት ይንኩ</div>
+          <div class="fullscreen-hint">Tap to Expand</div>
         </div>`;
       }
       if(it.type === 'audio') return `<div class="media"><audio controls controlsList="nodownload" oncontextmenu="return false;" src="${esc(it.url)}"></audio></div>`;
@@ -402,9 +711,9 @@ function levelView(){
     return '';
   }).join('');
   const alreadyPassed = state.userProgress?.[lv.id]?.passed;
-  return `<div class="topbar"><button class="ghost sm" data-act="go-home">← ተመለስ</button></div>
-  <h2>${esc(lv.title)}</h2><div class="card">${items || '<p class="muted">እስካሁን ምንም ይዘት የለም።</p>'}</div>
-  ${lv.quiz?.length ? `<button class="big" data-act="start-quiz">${alreadyPassed ? 'ፈተናውን በድጋሚ ውሰድ' : 'ፈተናውን ጀምር'}</button>` : ''}`;
+  return `<div class="topbar"><button class="ghost sm" data-act="go-home">← ${t('back')}</button></div>
+  <h2>${esc(title)}</h2><div class="card">${items || '<p class="muted">No content yet.</p>'}</div>
+  ${lv.quiz?.length ? `<button class="big" data-act="start-quiz">${alreadyPassed ? t('retakeTest') : t('startTest')}</button>` : ''}`;
 }
 
 function quizView(){
@@ -417,31 +726,32 @@ function quizView(){
     
     return `<div class="card center">
       <div style="font-size:56px">${pass ? '🎉' : '📚'}</div>
-      <h2>${pass ? 'ደረጃው ተጠናቋል!' : 'አላለፉም'}</h2>
+      <h2>${pass ? t('levelComplete') : t('youFailed')}</h2>
       
       <div style="font-size:44px;font-weight:800;color:${pass?'var(--accent)':'var(--bad)'}">${pct}%</div>
-      <p class="muted small">${qs.correct} ከ ${total} ትክክል · ማለፊያ ነጥብ ${getSettings().passMark}%</p>
+      <p class="muted small">${qs.correct} / ${total} ${t('correct')} · ${t('passMark')} ${getSettings().passMark}%</p>
       
       ${pass 
-        ? (next ? `<button class="big" data-act="open-level" data-id="${next.id}">ወደ ቀጣዩ ደረጃ ይሂዱ →</button>` : '<p class="muted" style="margin-top:10px">ሁሉንም ደረጃዎች ጨርሰዋል!</p>')
-        : `<p class="muted" style="margin-top:12px; color:var(--bad)">እባክዎ ትምህርቱን ይገምግሙ እና እንደገና ይሞክሩ።</p>`}
+        ? (next ? `<button class="big" data-act="open-level" data-id="${next.id}">${t('continueNext')}</button>` : `<p class="muted" style="margin-top:10px">${t('allLevelsDone')}</p>`)
+        : `<p class="muted" style="margin-top:12px; color:var(--bad)">${t('reviewAndTry')}</p>`}
         
-      <button class="big ghost" data-act="retry-quiz">${pass ? 'ፈተናውን በድጋሚ ውሰድ' : 'እንደገና ሞክር'}</button>
-      <button class="big ghost" data-act="go-home">ወደ ደረጃዎች ተመለስ</button>
+      <button class="big ghost" data-act="retry-quiz">${pass ? t('retakeTest') : t('tryAgain')}</button>
+      <button class="big ghost" data-act="go-home">${t('backToLevels')}</button>
     </div>`;
   }
   
   const q = lv.quiz[qs.i];
+  const qText = state.lang === 'am' ? (q.q_am || q.q) : (q.q_en || q.q);
   
-  // Handle old string options and new object options
   const opts = q.options.map((opt, i) => {
     const o = typeof opt === 'string' ? { text: opt, audioUrl: '' } : opt;
+    const optText = state.lang === 'am' ? (o.text_am || o.text) : (o.text_en || o.text);
     let cls = 'opt';
     if(qs.picked === i) cls += ' picked';
     return `<div class="${cls}" data-act="pick" data-i="${i}" style="cursor:pointer;">
-      <span class="key">${['ሀ','ለ','ሐ','መ','ሠ','ረ'][i]}</span>
+      <span class="key">${['A','B','C','D','E','F'][i]}</span>
       <div style="flex:1; display:flex; flex-direction:column; gap:8px; pointer-events:none; text-align:left;">
-        ${o.text ? `<span style="font-size:15px;">${esc(o.text)}</span>` : ''}
+        ${optText ? `<span style="font-size:15px;">${esc(optText)}</span>` : ''}
         ${o.audioUrl ? `<div style="pointer-events:auto;" onclick="event.stopPropagation()"><audio controls src="${o.audioUrl}" style="height:32px; max-width:100%;"></audio></div>` : ''}
       </div>
     </div>`;
@@ -451,7 +761,7 @@ function quizView(){
   if(q.imageUrl) {
     imageHtml = `<div class="media" data-act="fullscreen-img" data-url="${esc(q.imageUrl)}">
       <img src="${esc(q.imageUrl)}">
-      <div class="fullscreen-hint">ለማስፋት ይንኩ</div>
+      <div class="fullscreen-hint">Tap to Expand</div>
     </div>`;
   }
 
@@ -461,20 +771,20 @@ function quizView(){
     <span class="muted small">${qs.i+1}/${total}</span>
   </div>
   <div class="card">
-    <p class="muted small">ጥያቄ ${qs.i+1}</p>
+    <p class="muted small">${t('question')} ${qs.i+1}</p>
     ${imageHtml}
-    <h2 style="margin-bottom:18px">${esc(q.q)}</h2>
+    <h2 style="margin-bottom:18px">${esc(qText)}</h2>
     ${opts}
     
     <button class="big" data-act="quiz-next" ${qs.picked===null?'disabled':''}>
-      ${qs.i === total - 1 ? 'ፈተናውን አስገባ' : 'ቀጣይ ጥያቄ'}
+      ${qs.i === total - 1 ? t('submitTest') : t('nextQ')}
     </button>
   </div>`;
 }
 
 function teacherGateView(){
-  return `<div class="topbar"><button class="ghost sm" data-act="go-home">← ተመለስ</button></div>
-  <div class="card"><h2>የመምህር መግቢያ</h2><input id="pin-input" type="password" placeholder="ፒን"><button class="big" data-act="pin-check">ክፈት</button></div>`;
+  return `<div class="topbar"><button class="ghost sm" data-act="go-home">← ${t('back')}</button></div>
+  <div class="card"><h2>${t('teacherAccess')}</h2><input id="pin-input" type="password" placeholder="${t('pin')}"><button class="big" data-act="pin-check">${t('unlock')}</button></div>`;
 }
 
 function teacherView(){
@@ -486,44 +796,52 @@ function teacherView(){
   let alertHtml = '';
   if (pendingUsers.length > 0) {
     alertHtml += `<div class="alert-banner" style="background:#1f3d4a;border-color:var(--accent);color:#fff;">
-      <div>👤 ${pendingUsers.length} ተማሪ(ዎች) ማረጋገጫ በመጠባበቅ ላይ!</div>
+      <div>👤 ${pendingUsers.length} ${t('pendingApprovals')}</div>
     </div>`;
   }
   if (pendingPayments.length > 0) {
     alertHtml += `<div class="alert-banner" style="background:#4a3d1f;border-color:var(--warn);color:#fff;">
-      <div>🟡 ${pendingPayments.length} ተማሪ(ዎች) የክፍያ ማረጋገጫ በመጠባበቅ ላይ!</div>
+      <div>🟡 ${pendingPayments.length} ${t('pendingPayments')}</div>
     </div>`;
   }
   if (dueUsers.length > 0) {
     alertHtml += `<div class="alert-banner" style="flex-direction:column;align-items:flex-start;gap:8px;">
-      <div>⚠️ ${dueUsers.length} ተማሪ(ዎች) ተቆልፈዋል (ክፍያ ይጠበቃል)።</div>
+      <div>⚠️ ${dueUsers.length} ${t('lockedDue')}</div>
     </div>`;
   }
 
   return `
-  <div class="topbar"><button class="ghost sm" data-act="go-home">← ተመለስ</button><h2 style="margin:0">የመምህር ፓነል</h2></div>
+  <div class="topbar">
+    <button class="ghost sm" data-act="go-home">← ${t('back')}</button>
+    <h2 style="margin:0">${t('teacherPanel')}</h2>
+    <button class="ghost sm" data-act="toggle-lang" style="font-size:14px;">🌐 ${t('toggleLang')}</button>
+  </div>
   
   ${alertHtml}
 
   <div class="card">
-    <div class="row between"><strong>መሳሪያዎች</strong></div>
-    <button class="big ghost" data-act="manage-students" style="margin-bottom:10px;">👥 ተማሪዎችን እና ክፍያዎችን ያስተዳድሩ</button>
-    <button class="big ghost" data-act="manage-payment-details">🏦 የክፍያ ዝርዝሮችን ያስቀምጡ</button>
+    <div class="row between"><strong>${t('tools')}</strong></div>
+    <button class="big ghost" data-act="manage-students" style="margin-bottom:10px;">👥 ${t('manageStudents')}</button>
+    <button class="big ghost" data-act="manage-payment-details">🏦 ${t('setPaymentDetails')}</button>
   </div>
 
   <div class="card">
-    <div class="row between"><strong>ደረጃዎች</strong><button class="ghost sm" data-act="new-level">+ አዲስ ደረጃ</button></div>
-    ${state.levels.map((lv, i) => `<div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)">
-      <div style="flex:1;min-width:0"><strong>${i+1}. ${esc(lv.title)}</strong></div>
-      <button class="ghost sm" data-act="edit-level" data-id="${lv.id}">አስተካክል</button>
-      <button class="danger sm" data-act="delete-level" data-id="${lv.id}">🗑</button>
-    </div>`).join('')}
+    <div class="row between"><strong>${t('levels')}</strong><button class="ghost sm" data-act="new-level">${t('newLevel')}</button></div>
+    ${state.levels.map((lv, i) => {
+      const title = state.lang === 'am' ? (lv.title_am || lv.title) : (lv.title_en || lv.title);
+      return `<div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)">
+        <div style="flex:1;min-width:0"><strong>${i+1}. ${esc(title)}</strong></div>
+        <button class="ghost sm" data-act="edit-level" data-id="${lv.id}">${t('edit')}</button>
+        <button class="danger sm" data-act="delete-level" data-id="${lv.id}">🗑</button>
+      </div>`
+    }).join('')}
   </div>
 
   <div class="card">
-    <strong>ቅንብሮች</strong><label>ማለፊያ ነጥብ (%)</label><input id="set-pass" type="number" value="${getSettings().passMark}">
-    <label>የመምህር ፒን</label><input id="set-pin" type="text" value="${esc(getSettings().pin)}">
-    <button class="big ghost" data-act="save-settings">ቅንብሮችን አስቀምጥ</button>
+    <strong>${t('settings')}</strong>
+    <label>${t('passMarkPercent')}</label><input id="set-pass" type="number" value="${getSettings().passMark}">
+    <label>${t('teacherPin')}</label><input id="set-pin" type="text" value="${esc(getSettings().pin)}">
+    <button class="big ghost" data-act="save-settings">${t('saveSettings')}</button>
   </div>`;
 }
 
@@ -539,67 +857,67 @@ function manageStudentsView(){
     
     let statusBadge = '';
     if (type === 'blocked') {
-      statusBadge = `<span style="color:var(--muted);font-size:12px">በመምህሩ ታግዷል</span>`;
+      statusBadge = `<span style="color:var(--muted);font-size:12px">${t('blockedByTeacher')}</span>`;
     } else if (type === 'pending') {
-      statusBadge = `<span style="color:var(--accent);font-size:12px;font-weight:bold">ማረጋገጫ በመጠባበቅ ላይ</span>`;
+      statusBadge = `<span style="color:var(--accent);font-size:12px;font-weight:bold">${t('awaitingApproval')}</span>`;
     } else if (isOverdue && status === 'pending') {
-      statusBadge = `<span style="color:var(--warn);font-size:12px;font-weight:bold">🟡 ክፍያ በመጠባበቅ ላይ (${days} ቀናት)</span>`;
+      statusBadge = `<span style="color:var(--warn);font-size:12px;font-weight:bold">${t('paymentPending')} (${days} ${t('days')})</span>`;
     } else if (isOverdue && status !== 'active') {
-      statusBadge = `<span style="color:var(--bad);font-size:12px;font-weight:bold">⚠️ ተቆልፏል - አልተከፈለም (${days} ቀናት)</span>`;
+      statusBadge = `<span style="color:var(--bad);font-size:12px;font-weight:bold">${t('lockedNotPaid')} (${days} ${t('days')})</span>`;
     } else {
-      statusBadge = `<span style="color:var(--accent);font-size:12px">ንቁ (${days} ቀናት)</span>`;
+      statusBadge = `<span style="color:var(--accent);font-size:12px">${t('active')} (${days} ${t('days')})</span>`;
     }
 
     return `
     <div style="padding:12px 0;border-bottom:1px solid var(--line)">
       <div class="row between" style="margin-bottom:6px;">
-        <strong style="font-size:14px;word-break:break-all;color:${type==='blocked'?'var(--muted)':'var(--txt)'}">${esc(u.email || 'ያልታወቀ')}</strong>
+        <strong style="font-size:14px;word-break:break-all;color:${type==='blocked'?'var(--muted)':'var(--txt)'}">${esc(u.email || t('unknown'))}</strong>
         ${type === 'blocked' 
-          ? `<button class="ghost sm" data-act="unblock-user" data-email="${esc(u.email)}">ክፍት አድርግ</button>`
+          ? `<button class="ghost sm" data-act="unblock-user" data-email="${esc(u.email)}">${t('unblock')}</button>`
           : type === 'pending'
-            ? `<button class="renew sm" data-act="approve-user" data-uid="${u.uid}">አጽድቅ</button>`
+            ? `<button class="renew sm" data-act="approve-user" data-uid="${u.uid}">${t('approve')}</button>`
             : `<div class="row">
-                ${isOverdue ? `<button class="renew sm" data-act="renew-user" data-uid="${u.uid}">ለ60 ቀናት አድስ</button>` : ''}
-                <button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">አግድ</button>
+                ${isOverdue ? `<button class="renew sm" data-act="renew-user" data-uid="${u.uid}">${t('renew60')}</button>` : ''}
+                <button class="danger sm" data-act="block-user" data-email="${esc(u.email)}">${t('block')}</button>
               </div>`
         }
       </div>
       <div class="row between">
-        <span class="muted small">የተቀላቀሉበት፡ ${u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : 'ያልታወቀ'}</span>
+        <span class="muted small">${t('joined')} ${u.joinedDate ? new Date(u.joinedDate).toLocaleDateString() : t('unknown')}</span>
         ${statusBadge}
       </div>
     </div>`;
   };
 
   return `
-  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← ተመለስ</button><h2 style="margin:0">ተማሪዎች</h2></div>
+  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← ${t('back')}</button><h2 style="margin:0">${t('students')}</h2></div>
   
   ${pendingUsers.length ? `
   <div class="card" style="border-color: var(--accent);">
-    <h3 style="color:var(--accent);margin-bottom:10px;">⏳ በመጠባበቅ ላይ ያሉ ማረጋገጫዎች</h3>
-    <p class="muted small" style="margin-bottom:12px">እነዚህ ተማሪዎች አሁን አካውንት ፈጥረዋል። ከከፈሉ በኋላ <b>አጽድቅ</b> የሚለውን ይጫኑ።</p>
+    <h3 style="color:var(--accent);margin-bottom:10px;">${t('pendingApprovalsList')}</h3>
+    <p class="muted small" style="margin-bottom:12px">${t('pendingDesc')}</p>
     ${pendingUsers.map(u => renderUserRow(u, 'pending')).join('')}
   </div>` : ''}
 
   <div class="card">
-    <h3 style="color:var(--accent);margin-bottom:10px;">ንቁ ተማሪዎች</h3>
-    <p class="muted small" style="margin-bottom:12px">አንድ ተማሪ ወርሃዊ ክፍያውን ሲከፍል የ60 ቀን ቆጣሪውን ለመጀመር <b>አድስ</b> የሚለውን ይጫኑ።</p>
-    ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, 'active')).join('') : '<p class="muted">ንቁ ተማሪዎች የሉም።</p>'}
+    <h3 style="color:var(--accent);margin-bottom:10px;">${t('activeStudents')}</h3>
+    <p class="muted small" style="margin-bottom:12px">${t('activeDesc')}</p>
+    ${activeUsers.length ? activeUsers.map(u => renderUserRow(u, 'active')).join('') : `<p class="muted">${t('noActive')}</p>`}
   </div>
 
   <div class="card" style="border-color: #4a2626;">
-    <h3 style="color:var(--bad);margin-bottom:10px;">የታገዱ ተማሪዎች</h3>
-    ${blockedUsers.length ? blockedUsers.map(u => renderUserRow(u, 'blocked')).join('') : '<p class="muted">የታገዱ ተማሪዎች የሉም።</p>'}
+    <h3 style="color:var(--bad);margin-bottom:10px;">${t('blockedStudents')}</h3>
+    ${blockedUsers.length ? blockedUsers.map(u => renderUserRow(u, 'blocked')).join('') : `<p class="muted">${t('noBlocked')}</p>`}
   </div>`;
 }
 
 function managePaymentDetailsView(){
   return `
-  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← ተመለስ</button><h2 style="margin:0">የክፍያ ዝርዝሮች</h2></div>
+  <div class="topbar"><button class="ghost sm" data-act="back-teacher">← ${t('back')}</button><h2 style="margin:0">${t('payDetails')}</h2></div>
   <div class="card">
-    <p class="muted small">የባንክ አካውንትዎን፣ የቴሌብር ቁጥርዎን ወይም የክፍያ መመሪያዎችን ከዚህ በታች ይተይቡ። በተጨማሪም የክፍያ ሊንክ መለጠፍ ይችላሉ (በ http:// ወይም https:// የሚጀምር) እና ለተማሪዎች ተጭነው የሚከፈት ይሆናል።</p>
-    <textarea id="pay-details" placeholder="ለምሳሌ፡ ቴሌብር፡ 0912345678&#10;ሊንክ፡ https://example.com/pay" style="min-height:150px;">${esc(state.paymentDetails || '')}</textarea>
-    <button class="big" data-act="save-payment-details">የክፍያ ዝርዝሮችን አስቀምጥ</button>
+    <p class="muted small">${t('payDesc')}</p>
+    <textarea id="pay-details" placeholder="${t('payPlaceholder')}" style="min-height:150px;">${esc(state.paymentDetails || '')}</textarea>
+    <button class="big" data-act="save-payment-details">${t('savePayDetails')}</button>
   </div>`;
 }
 
@@ -608,15 +926,15 @@ function pendingApprovalView(){
   <div class="payment-overlay">
     <div class="payment-box" style="border-color:var(--accent)">
       <div class="center" style="font-size:56px;margin-bottom:10px">⏳</div>
-      <h2 class="center" style="color:var(--accent);margin-bottom:10px;">አካውንት በመጠባበቅ ላይ</h2>
-      <p class="center muted" style="margin-bottom:16px;">አካውንትዎ በተሳካ ሁኔታ ተፈጥሯል! እባክዎ ከታች ያለውን ክፍያ ይፈጽሙ እና መምህሩ እስኪያጸድቁዎት ይጠብቁ።</p>
+      <h2 class="center" style="color:var(--accent);margin-bottom:10px;">${t('accountPending')}</h2>
+      <p class="center muted" style="margin-bottom:16px;">${t('accountPendingDesc')}</p>
       
       <div style="background:var(--card2);border:1px dashed var(--accent);padding:16px;border-radius:12px;margin-bottom:24px;">
-        <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">የክፍያ ዝርዝሮች</div>
-        <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${linkify(state.paymentDetails || 'እባክዎ ለክፍያ ዝርዝሮች መምህሩን ያግኙ።')}</div>
+        <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">${t('payDetails')}</div>
+        <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${linkify(state.paymentDetails || t('unknown'))}</div>
       </div>
 
-      <button class="big ghost" data-act="signout">ውጣ</button>
+      <button class="big ghost" data-act="signout">${t('logout')}</button>
     </div>
   </div>`;
 }
@@ -631,35 +949,34 @@ function paymentBlockedView(){
       <div class="center" style="font-size:56px;margin-bottom:10px">${isPending ? '⏳' : '🔒'}</div>
       
       ${isPending ? `
-        <h2 class="center" style="color:var(--warn);margin-bottom:10px;">ክፍያ በመጠባበቅ ላይ</h2>
-        <p class="center muted" style="margin-bottom:24px;">እንደከፈሉ ምልክት አድርገዋል። እባክዎ መምህሩ አረጋግጠው አካውንትዎን እስኪከፍቱ ይጠብቁ።</p>
+        <h2 class="center" style="color:var(--warn);margin-bottom:10px;">${t('paymentWaiting')}</h2>
+        <p class="center muted" style="margin-bottom:24px;">${t('paymentWaitingDesc')}</p>
       ` : `
-        <h2 class="center" style="color:var(--bad);margin-bottom:10px;">መተግበሪያው ተቆልፏል</h2>
-        <p class="center muted" style="margin-bottom:16px;">የ60 ቀን ምዝገባዎ አልቋል (${days} ቀናት)። እባክዎ መማርዎን ለመቀጠል ይክፈሉ።</p>
+        <h2 class="center" style="color:var(--bad);margin-bottom:10px;">${t('appLocked')}</h2>
+        <p class="center muted" style="margin-bottom:16px;">${t('appLockedDesc')} (${days} ${t('days')})</p>
         
         <div style="background:var(--card2);border:1px dashed var(--accent);padding:16px;border-radius:12px;margin-bottom:24px;">
-          <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">የክፍያ ዝርዝሮች</div>
-          <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${linkify(state.paymentDetails || 'እባክዎ ለክፍያ ዝርዝሮች መምህሩን ያግኙ።')}</div>
+          <div class="muted small" style="margin-bottom:6px;text-transform:uppercase;font-weight:bold;">${t('payDetails')}</div>
+          <div style="white-space:pre-wrap;font-size:15px;line-height:1.4;">${linkify(state.paymentDetails || t('unknown'))}</div>
         </div>
 
-        <button class="big warn" data-act="payment-done">ከፍያለሁ</button>
+        <button class="big warn" data-act="payment-done">${t('iPaid')}</button>
       `}
       
-      <button class="big ghost" data-act="signout" style="margin-top:20px;">ውጣ</button>
+      <button class="big ghost" data-act="signout" style="margin-top:20px;">${t('logout')}</button>
     </div>
   </div>`;
 }
 
 function itemEditor(it, i){
-  if(it.type === 'text') return `<div class="edit-box"><div class="row between"><span class="chip">ጽሑፍ</span><button class="danger sm" data-act="del-item" data-i="${i}">✕</button></div><textarea data-field="item-text" data-i="${i}">${esc(it.text||'')}</textarea></div>`;
-  const hint = it.type === 'video' ? 'የቪዲዮ ሊንክ' : it.type === 'image' ? 'የምስል ሊንክ' : 'የድምጽ ሊንክ';
-  return `<div class="edit-box"><div class="row between"><span class="chip">${it.type === 'video' ? 'ቪዲዮ' : it.type === 'image' ? 'ምስል' : 'ድምጽ'}</span><button class="danger sm" data-act="del-item" data-i="${i}">✕</button></div>
+  if(it.type === 'text') return `<div class="edit-box"><div class="row between"><span class="chip">${t('text')}</span><button class="danger sm" data-act="del-item" data-i="${i}">✕</button></div><textarea data-field="item-text" data-i="${i}">${esc(it.text||'')}</textarea></div>`;
+  const hint = it.type === 'video' ? 'Video URL' : it.type === 'image' ? 'Image URL' : 'Audio URL';
+  return `<div class="edit-box"><div class="row between"><span class="chip">${it.type === 'video' ? t('video') : it.type === 'image' ? t('image') : t('audio')}</span><button class="danger sm" data-act="del-item" data-i="${i}">✕</button></div>
   <input data-field="item-url" data-i="${i}" placeholder="${hint}" value="${esc(it.url||'')}">
   <input type="file" data-upload="${it.type}" data-i="${i}" accept="${it.type==='video'?'video/*':it.type==='image'?'image/*':'audio/*'}"></div>`;
 }
 
 function questionEditor(q, qi){
-  // Convert old string options to objects to support audio
   if(q.options && q.options.length && typeof q.options[0] === 'string') {
     q.options = q.options.map(o => ({ text: o, audioUrl: '' }));
   }
@@ -668,44 +985,46 @@ function questionEditor(q, qi){
     <div style="margin-bottom:12px; border-bottom:1px solid var(--line); padding-bottom:8px;">
       <div class="row" style="margin-bottom:6px">
         <input type="radio" name="ans${qi}" data-answer="${qi}" data-oi="${oi}" ${q.answer===oi?'checked':''}>
-        <input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o.text)}" placeholder="የጽሑፍ አማራጭ">
+        <input data-field="q-opt" data-qi="${qi}" data-oi="${oi}" value="${esc(o.text)}" placeholder="${t('textOption')}">
       </div>
       <div class="row">
         <input type="file" data-upload-qopt-audio="${qi}" data-oi="${oi}" accept="audio/*" style="margin:0; padding:6px; font-size:12px;">
-        ${o.audioUrl ? `<span class="small" style="color:var(--accent);margin-left:8px;">✅ ድምጽ ተያይዟል</span>` : ''}
+        ${o.audioUrl ? `<span class="small" style="color:var(--accent);margin-left:8px;">${t('audioAttached')}</span>` : ''}
       </div>
     </div>
   `).join('');
 
   return `<div class="edit-box">
     <div class="row between" style="margin-bottom:6px">
-      <span class="chip">ጥያቄ ${qi+1}</span>
+      <span class="chip">${t('q')} ${qi+1}</span>
       <button class="danger sm" data-act="del-q" data-qi="${qi}">✕</button>
     </div>
-    <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}" placeholder="የጥያቄ ጽሑፍ">
-    <label>አማራጭ ምስል</label><input type="file" data-upload-qimage="${qi}" accept="image/*">
-    <div class="muted small" style="margin:12px 0 4px;font-weight:bold;color:var(--accent)">ትክክለኛውን መልስ ይምረጡ፡ (ድምጽም ማያያዝ ይችላሉ)</div>
+    <input data-field="q-text" data-qi="${qi}" value="${esc(q.q)}" placeholder="${t('questionText')}">
+    <label>${t('optionalImage')}</label><input type="file" data-upload-qimage="${qi}" accept="image/*">
+    <div class="muted small" style="margin:12px 0 4px;font-weight:bold;color:var(--accent)">${t('selectCorrect')}</div>
     ${opts}
     <div class="row wrap" style="margin-top:8px">
-      <button class="ghost sm" data-act="add-option" data-qi="${qi}">+ አማራጭ ጨምር</button>
-      <button class="danger sm" data-act="del-option" data-qi="${qi}">✕ የመጨረሻውን አማራጭ አስወግድ</button>
+      <button class="ghost sm" data-act="add-option" data-qi="${qi}">${t('addOption')}</button>
+      <button class="danger sm" data-act="del-option" data-qi="${qi}">${t('removeOption')}</button>
     </div>
   </div>`;
 }
 
 function editView(){
   const lv = state.editing;
-  return `<div class="topbar"><button class="ghost sm" data-act="back-teacher">← ተመለስ</button><h2 style="margin:0">ደረጃ አስተካክል</h2></div>
-  <div class="card"><label>የደረጃው ርዕስ</label><input data-field="title" value="${esc(lv.title)}">
+  const title = state.lang === 'am' ? (lv.title_am || lv.title) : (lv.title_en || lv.title);
+  return `<div class="topbar"><button class="ghost sm" data-act="back-teacher">← ${t('back')}</button><h2 style="margin:0">${t('editLevel')}</h2></div>
+  <div class="card"><label>${t('levelTitle')}</label><input data-field="title" value="${esc(title)}">
   ${(lv.items||[]).map(itemEditor).join('')}
-  <div class="row wrap"><button class="ghost sm" data-act="add-item" data-type="text">+ ጽሑፍ</button><button class="ghost sm" data-act="add-item" data-type="video">+ ቪዲዮ</button><button class="ghost sm" data-act="add-item" data-type="image">+ ምስል</button></div></div>
-  <div class="card"><label>ጥያቄዎች</label>${(lv.quiz||[]).map(questionEditor).join('')}<button class="ghost sm" data-act="add-q">+ ጥያቄ ጨምር</button></div>
-  <button class="big" data-act="save-level">💾 ደረጃውን አስቀምጥ</button>`;
+  <div class="row wrap"><button class="ghost sm" data-act="add-item" data-type="text">${t('addText')}</button><button class="ghost sm" data-act="add-item" data-type="video">${t('addVideo')}</button><button class="ghost sm" data-act="add-item" data-type="image">${t('addImage')}</button></div></div>
+  <div class="card"><label>${t('questions')}</label>${(lv.quiz||[]).map(questionEditor).join('')}<button class="ghost sm" data-act="add-q">${t('addQuestion')}</button></div>
+  <button class="big" data-act="save-level">${t('saveLevel')}</button>`;
 }
 
 function render(){
   const app = document.getElementById('app');
   const isTeacher = state.username === TEACHER_EMAIL;
+  document.documentElement.lang = state.lang;
   
   if (state.username && !isTeacher) {
     document.body.classList.add('student-mode');
@@ -728,7 +1047,7 @@ function render(){
   }
 
   let html = '';
-  if(state.loading) html = `<div class="center" style="margin-top:40vh"><h2>በመጫን ላይ...</h2></div>`;
+  if(state.loading) html = `<div class="center" style="margin-top:40vh"><h2>${t('loading')}</h2></div>`;
   else if(!state.username) html = authView();
   else if(state.screen === 'home') html = homeView();
   else if(state.screen === 'level') html = levelView();
@@ -739,7 +1058,7 @@ function render(){
   else if(state.screen === 'manage-payment-details') html = managePaymentDetailsView();
   else if(state.screen === 'edit') html = editView();
 
-  if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">በመስቀል ላይ...</div>`;
+  if(state.uploading) html += `<div class="flash" style="background:var(--warn);color:#000">${t('uploading')}</div>`;
   app.innerHTML = html + (state.flash ? `<div class="flash">${esc(state.flash)}</div>` : '');
 
   if (state.showInstallGuide) {
@@ -747,19 +1066,11 @@ function render(){
     app.innerHTML += `
     <div class="modal-overlay">
       <div class="modal-box">
-        <h2 class="center" style="color:var(--accent);margin-bottom:16px;">📲 እንዴት እንደሚጫኑ</h2>
+        <h2 class="center" style="color:var(--accent);margin-bottom:16px;">📲 ${t('howToInstall')}</h2>
         <div style="text-align:left; margin: 16px 0; line-height: 1.6; font-size: 15px;">
-          ${isiOS ? `
-            <p><strong>በiPhone (Safari) ላይ፡</strong></p>
-            <p>1. ከታች ያለውን የ<b>አጋራ (Share)</b> ምልክት ይጫኑ <svg style="width:16px;height:16px;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>።</p>
-            <p>2. ወደታች ወርደው <b>"Add to Home Screen"</b> የሚለውን ይጫኑ።</p>
-          ` : `
-            <p><strong>በAndroid / ኮምፒውተር ላይ፡</strong></p>
-            <p>1. የብራውዘር ምናሌውን <b>(3 ነጥቦች ⋮ ወይም ⋯)</b> ይጫኑ።</p>
-            <p>2. <b>"Install app"</b> ወይም <b>"Add to Home Screen"</b> የሚለውን ይፈልጉ እና ይጫኑት።</p>
-          `}
+          ${isiOS ? t('iosInstall') : t('androidInstall')}
         </div>
-        <button class="big" data-act="close-install-guide">ገባኝ</button>
+        <button class="big" data-act="close-install-guide">${t('gotIt')}</button>
       </div>
     </div>`;
   }
@@ -768,14 +1079,21 @@ function render(){
     app.innerHTML += `
     <div class="security-blur">
       <h2 style="font-size:30px">🚫</h2>
-      <h2>ስክሪኑ ተደብቋል</h2>
-      <p class="muted">እባክዎ ወደ መተግበሪያው ይመለሱ። ስክሪን መቅረጽ ወይም መተግበሪያ መቀየር አይፈቀድም።</p>
+      <h2>${t('screenHidden')}</h2>
+      <p class="muted">${t('screenHiddenDesc')}</p>
     </div>`;
   }
 }
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if(!el) return; const act = el.dataset.act;
+
+  if(act === 'toggle-lang') {
+    state.lang = state.lang === 'am' ? 'en' : 'am';
+    localStorage.setItem('noor_lang', state.lang);
+    render();
+    return;
+  }
 
   if(act === 'close-install-guide') {
     state.showInstallGuide = false;
@@ -829,7 +1147,7 @@ document.addEventListener('click', async e => {
     if(state.editing.quiz[qi].options.length < 6) {
       state.editing.quiz[qi].options.push({text:'',audioUrl:''});
       render();
-    } else { flash('ቢያንስ 6 አማራጮች ብቻ ይፈቀዳሉ'); }
+    } else { flash(t('maxOptions')); }
     return;
   }
 
@@ -840,12 +1158,12 @@ document.addEventListener('click', async e => {
       q.options.pop();
       if(q.answer >= q.options.length) q.answer = 0;
       render();
-    } else { flash('ቢያንስ 2 አማራጮች መኖር አለባቸው'); }
+    } else { flash(t('minOptions')); }
     return;
   }
 
   if(act === 'payment-done') {
-    if(!confirm('ክፍያውን ጨርሰዋል? መምህሩ አረጋግጠው አካውንትዎን ይከፍቱልዎታል።')) return;
+    if(!confirm(t('confirmPayment'))) return;
     state.paymentStatus = 'pending';
     await setDoc(doc(db, 'users', state.uid), { paymentStatus: 'pending' }, { merge: true });
     render(); return;
@@ -868,75 +1186,75 @@ document.addEventListener('click', async e => {
     const txt = document.getElementById('pay-details').value.trim();
     await setDoc(doc(db, 'config', 'paymentDetails'), { text: txt });
     state.paymentDetails = txt;
-    flash('የክፍያ ዝርዝሮች ተቀምጠዋል!');
+    flash(t('successPayDetails'));
     return;
   }
 
   if(act === 'approve-user') {
     if(state.username !== TEACHER_EMAIL) return;
     const targetUid = el.dataset.uid;
-    if(!confirm('ይህ ተማሪ እንዲጀምር ያጽድቁ?')) return;
+    if(!confirm(t('confirmApprove'))) return;
     try {
       await setDoc(doc(db, 'users', targetUid), { 
         status: 'approved', 
         joinedDate: new Date().toISOString(), 
         paymentStatus: 'active' 
       }, { merge: true });
-      flash('ተማሪው ጸድቋል!');
+      flash(t('successApprove'));
       await fetchAllUsers();
       render();
-    } catch(e) { flash('ተማሪውን ማጽደቅ አልተቻለም።'); }
+    } catch(e) { flash(t('errorApprove')); }
     return;
   }
 
   if(act === 'renew-user') {
     if(state.username !== TEACHER_EMAIL) return;
     const targetUid = el.dataset.uid;
-    if(!confirm('ክፍያውን አጽድቀው ለ60 ቀናት ይክፈቱለት?')) return;
+    if(!confirm(t('confirmRenew'))) return;
     try {
       await setDoc(doc(db, 'users', targetUid), { joinedDate: new Date().toISOString(), paymentStatus: 'active' }, { merge: true });
-      flash('ተማሪው ተከፍቶ እንደገና ተጀምሯል!');
+      flash(t('successRenew'));
       await fetchAllUsers();
       render();
-    } catch(e) { flash('እንደገና ማስጀመር አልተቻለም።'); }
+    } catch(e) { flash(t('errorRenew')); }
     return;
   }
 
   if(act === 'block-user') {
     if(state.username !== TEACHER_EMAIL) return;
     const email = el.dataset.email;
-    if(!email) return flash('ኢሜይል የሌለውን ተጠቃሚ ማገድ አይቻልም።');
-    if(!confirm(`${email}ን ማገድ ይፈልጋሉ?`)) return;
+    if(!email) return flash(t('errorBlock'));
+    if(!confirm(`${t('confirmBlock')} (${email})`)) return;
     try {
       const snap = await getDoc(doc(db, 'config', 'blocked'));
       let emails = snap.exists() ? (snap.data().emails || []) : [];
       if(!emails.includes(email)) emails.push(email);
       await setDoc(doc(db, 'config', 'blocked'), { emails });
-      flash('ተጠቃሚው ታግዷል።');
+      flash(t('successBlock'));
       await fetchAllUsers();
       render();
-    } catch(e) { flash('ተጠቃሚውን ማገድ አልተቻለም።'); }
+    } catch(e) { flash(t('errorBlock')); }
     return;
   }
 
   if(act === 'unblock-user') {
     if(state.username !== TEACHER_EMAIL) return;
     const email = el.dataset.email;
-    if(!confirm(`${email}ን ክፍት ማድረግ ይፈልጋሉ?`)) return;
+    if(!confirm(`${t('confirmUnblock')} (${email})`)) return;
     try {
       const snap = await getDoc(doc(db, 'config', 'blocked'));
       let emails = snap.exists() ? (snap.data().emails || []) : [];
       emails = emails.filter(e => e !== email);
       await setDoc(doc(db, 'config', 'blocked'), { emails });
-      flash('ተጠቃሚው ክፍት ሆኗል።');
+      flash(t('successUnblock'));
       await fetchAllUsers();
       render();
-    } catch(e) { flash('ተጠቃሚውን ክፍት ማድረግ አልተቻለም።'); }
+    } catch(e) { flash(t('errorUnblock')); }
     return;
   }
 
   if (act === 'install-app') {
-    if (state.isStandalone) return flash('መተግበሪያው አስቀድሞ ተጭኗል!');
+    if (state.isStandalone) return flash(t('installed'));
     if (state.installPrompt) {
       state.installPrompt.prompt();
       const { outcome } = await state.installPrompt.userChoice;
@@ -954,21 +1272,21 @@ document.addEventListener('click', async e => {
     const p = document.getElementById('auth-pass')?.value || '';
     
     let cleanName = rawInput.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-    if(!cleanName) return flash('እባክዎ ትክክለኛ ስም ያስገቡ።');
+    if(!cleanName) return flash(t('invalidName'));
     
     const email = cleanName + '@gmail.com';
 
-    if(p.length < 6) return flash('የይለፍ ቃሉ በጣም አጭር ነው።');
-    const btn = document.getElementById('btn-auth'); btn.disabled = true; btn.innerText = 'በመገናኘት ላይ...';
+    if(p.length < 6) return flash(t('passTooShort'));
+    const btn = document.getElementById('btn-auth'); btn.disabled = true; btn.innerText = t('connecting');
     try {
       if(state.authMode === 'signup'){
         const p2 = document.getElementById('auth-pass2')?.value || '';
-        if(p !== p2) { btn.disabled = false; btn.innerText = 'አካውንቴን ፍጠር'; return flash('የይለፍ ቃላቱ አይመሳሰሉም'); }
+        if(p !== p2) { btn.disabled = false; btn.innerText = t('createAccount'); return flash(t('passMismatch')); }
         await createUserWithEmailAndPassword(auth, email, p);
       } else { await signInWithEmailAndPassword(auth, email, p); }
     } catch(err) {
-      btn.disabled = false; btn.innerText = state.authMode === 'signin' ? 'ግባ' : 'አካውንቴን ፍጠር';
-      flash(err.code === 'auth/invalid-credential' ? 'የተሳሳተ ስም/የይለፍ ቃል' : err.message);
+      btn.disabled = false; btn.innerText = state.authMode === 'signin' ? t('login') : t('createAccount');
+      flash(err.code === 'auth/invalid-credential' ? t('wrongCreds') : err.message);
     }
     return;
   }
@@ -1030,18 +1348,18 @@ document.addEventListener('click', async e => {
   }
 
   if(act === 'teacher-open'){ 
-    if(state.username !== TEACHER_EMAIL) return flash('መዳረሻ ተከልክሏል');
+    if(state.username !== TEACHER_EMAIL) return flash(t('accessDenied'));
     if(!state.teacherUnlocked){ state.screen = 'teacher-gate'; render(); return; }
     else { await fetchAllUsers(); state.screen = 'teacher'; render(); return; }
   }
   if(act === 'pin-check'){
     if(document.getElementById('pin-input').value === getSettings().pin){ 
       state.teacherUnlocked = true; await fetchAllUsers(); state.screen = 'teacher'; render(); 
-    } else flash('የተሳሳተ ፒን'); return;
+    } else flash(t('wrongPin')); return;
   }
   if(act === 'new-level'){ 
     if(state.username !== TEACHER_EMAIL) return;
-    state.editing = { id: 'lv'+Date.now(), title: 'አዲስ ደረጃ', items: [], quiz: [] }; state.screen = 'edit'; render(); return; 
+    state.editing = { id: 'lv'+Date.now(), title: 'New level', title_am: 'አዲስ ደረጃ', title_en: 'New level', items: [], quiz: [] }; state.screen = 'edit'; render(); return; 
   }
   if(act === 'edit-level'){ 
     if(state.username !== TEACHER_EMAIL) return;
@@ -1049,12 +1367,12 @@ document.addEventListener('click', async e => {
   }
   if(act === 'delete-level'){ 
     if(state.username !== TEACHER_EMAIL) return;
-    if(confirm('ይህን ደረጃ እና ሁሉንም ይዘቱን ይሰርዙ?')){ const u = state.levels.filter(l => l.id !== el.dataset.id); await saveCloudLevels(u); render(); } return; 
+    if(confirm(t('confirmDelete'))){ const u = state.levels.filter(l => l.id !== el.dataset.id); await saveCloudLevels(u); render(); } return; 
   }
   if(act === 'save-settings'){
     if(state.username !== TEACHER_EMAIL) return;
     const s = getSettings(); s.passMark = Math.min(100, Math.max(10, Number(document.getElementById('set-pass').value) || 80));
-    const pin = document.getElementById('set-pin').value.trim(); if(pin) s.pin = pin; setSettings(s); flash('ቅንብሮች ተቀምጠዋል'); return;
+    const pin = document.getElementById('set-pin').value.trim(); if(pin) s.pin = pin; setSettings(s); flash(t('successSettings')); return;
   }
   if(act === 'add-item'){ 
     if(state.username !== TEACHER_EMAIL) return;
@@ -1074,23 +1392,27 @@ document.addEventListener('click', async e => {
   }
   if(act === 'save-level'){
     if(state.username !== TEACHER_EMAIL) return;
-    const lv = state.editing; if(!lv.title.trim()) return flash('ርዕስ ያስፈልጋል');
-    lv.quiz = (lv.quiz || []).filter(q => q.q.trim() && q.options.some(o => o.text.trim() || o.audioUrl));
+    const lv = state.editing; 
+    if(!lv.title && !lv.title_am && !lv.title_en) return flash(t('titleRequired'));
+    lv.title_am = lv.title_am || lv.title;
+    lv.title_en = lv.title_en || lv.title;
+    
+    lv.quiz = (lv.quiz || []).filter(q => (q.q || q.q_am || q.q_en) && q.options.some(o => o.text || o.audioUrl));
     state.uploading = true; render();
     const updated = [...state.levels]; const idx = updated.findIndex(l => l.id === lv.id);
     if(idx >= 0) updated[idx] = lv; else updated.push(lv);
     await saveCloudLevels(updated);
-    state.uploading = false; state.screen = 'teacher'; flash('ተቀምጧል!'); return;
+    state.uploading = false; state.screen = 'teacher'; flash(t('successLevelSave')); return;
   }
 });
 
 document.addEventListener('input', e => {
   const t = e.target; if(!state.editing) return;
-  if(t.dataset.field === 'title') state.editing.title = t.value;
-  if(t.dataset.field === 'item-text') state.editing.items[Number(t.dataset.i)].text = t.value;
+  if(t.dataset.field === 'title') { state.editing.title = t.value; state.editing.title_am = t.value; state.editing.title_en = t.value; }
+  if(t.dataset.field === 'item-text') { state.editing.items[Number(t.dataset.i)].text = t.value; state.editing.items[Number(t.dataset.i)].text_am = t.value; state.editing.items[Number(t.dataset.i)].text_en = t.value; }
   if(t.dataset.field === 'item-url') state.editing.items[Number(t.dataset.i)].url = t.value;
-  if(t.dataset.field === 'q-text') state.editing.quiz[Number(t.dataset.qi)].q = t.value;
-  if(t.dataset.field === 'q-opt') state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)].text = t.value;
+  if(t.dataset.field === 'q-text') { state.editing.quiz[Number(t.dataset.qi)].q = t.value; state.editing.quiz[Number(t.dataset.qi)].q_am = t.value; state.editing.quiz[Number(t.dataset.qi)].q_en = t.value; }
+  if(t.dataset.field === 'q-opt') { state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)].text = t.value; state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)].text_am = t.value; state.editing.quiz[Number(t.dataset.qi)].options[Number(t.dataset.oi)].text_en = t.value; }
 });
 
 document.addEventListener('change', async e => {
@@ -1103,8 +1425,8 @@ document.addEventListener('change', async e => {
     try {
       const url = await uploadToCloudinary(file);
       state.editing.quiz[Number(t.dataset.uploadQimage)].imageUrl = url;
-      state.uploading = false; render(); flash('ምስል ተሰቅሏል');
-    } catch(err) { state.uploading = false; render(); flash('መስቀል አልተቻለም'); }
+      state.uploading = false; render(); flash(t('successFileUpload'));
+    } catch(err) { state.uploading = false; render(); flash(t('errorFileUpload')); }
     return;
   }
 
@@ -1116,8 +1438,8 @@ document.addEventListener('change', async e => {
     try {
       const url = await uploadToCloudinary(file);
       state.editing.quiz[qi].options[oi].audioUrl = url;
-      state.uploading = false; render(); flash('ድምጽ ተሰቅሏል');
-    } catch(err) { state.uploading = false; render(); flash('መስቀል አልተቻለም'); }
+      state.uploading = false; render(); flash(t('successFileUpload'));
+    } catch(err) { state.uploading = false; render(); flash(t('errorFileUpload')); }
     return;
   }
 
@@ -1127,8 +1449,8 @@ document.addEventListener('change', async e => {
     try {
       const url = await uploadToCloudinary(file);
       state.editing.items[Number(t.dataset.i)].url = url;
-      state.uploading = false; render(); flash('ፋይል ተሰቅሏል');
-    } catch(err) { state.uploading = false; render(); flash('መስቀል አልተቻለም'); }
+      state.uploading = false; render(); flash(t('successFileUpload'));
+    } catch(err) { state.uploading = false; render(); flash(t('errorFileUpload')); }
   }
 });
 
@@ -1149,7 +1471,7 @@ document.addEventListener('visibilitychange', () => {
 if(!localStorage.getItem(K_SETTINGS)) setSettings({ pin:'1234', passMark:80 });
 if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) state.isStandalone = true;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; render(); });
-window.addEventListener('appinstalled', () => { state.installPrompt = null; state.isStandalone = true; render(); flash('መተግበሪያው ተጭኗል! 🎉'); });
+window.addEventListener('appinstalled', () => { state.installPrompt = null; state.isStandalone = true; render(); flash(t('installed')); });
 
 onAuthStateChanged(auth, async (user) => {
   state.teacherUnlocked = false;
