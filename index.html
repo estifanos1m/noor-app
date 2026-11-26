@@ -1089,6 +1089,18 @@ function editView(){
   <button class="big" data-act="save-level">${t('saveLevel')}</button>`;
 }
 
+let noorHistoryScreen = null;
+let restoringNoorHistory = false;
+window.addEventListener('popstate', event => {
+  const target = event.state && event.state.noorScreen;
+  if (!target || !state.username) return;
+  restoringNoorHistory = true;
+  state.screen = target;
+  noorHistoryScreen = target;
+  render();
+  restoringNoorHistory = false;
+});
+
 function render(){
   const app = document.getElementById('app');
   const isTeacher = state.username === TEACHER_EMAIL;
@@ -1102,6 +1114,12 @@ function render(){
 
   if (!isTeacher && ['teacher', 'manage-students', 'manage-payment-details', 'edit', 'alphabet-teacher', 'alphabet-edit'].includes(state.screen)) {
     state.screen = 'home';
+  }
+
+  if (!restoringNoorHistory && !state.loading && !state.startupError && state.username) {
+    if (noorHistoryScreen === null) history.replaceState({ noorScreen: state.screen }, '');
+    else if (noorHistoryScreen !== state.screen) history.pushState({ noorScreen: state.screen }, '');
+    noorHistoryScreen = state.screen;
   }
 
   if (state.isPendingApproval && !isTeacher) {
