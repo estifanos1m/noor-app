@@ -1,8 +1,13 @@
-// Basic Service Worker to enable PWA installation
-self.addEventListener('install', (e) => {
+// Service worker for Noor PWA installation and app updates.
+self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-  // Let the network handle the requests (Firebase/Cloudinary)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(fetch(event.request));
 });
