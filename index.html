@@ -507,7 +507,7 @@ async function uploadToCloudinary(file) {
 let state = {
   screen: 'auth', authMode: 'signin', username: null, uid: null, userProgress: {},
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
-  flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false,
+  flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false, startupStalled: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
   isPaymentBlocked: false, isPendingApproval: false, paymentStatus: 'active', userJoinedDate: null,
   isAppBlurred: false, showInstallGuide: false,
@@ -1102,7 +1102,8 @@ function render(){
   }
 
   let html = '';
-  if(state.loading) html = `<div class="center" style="margin-top:40vh"><h2>${t('loading')}</h2></div>`;
+  if(state.loading && state.startupStalled) html = `<div class="center" style="margin:30vh auto 0;max-width:340px;padding:24px"><h2>${t('loading')}</h2><p>Still connecting. Check your internet connection, then try again.</p><button class="big" data-act="retry-startup">Retry</button></div>`;
+  else if(state.loading) html = `<div class="center" style="margin-top:40vh"><h2>${t('loading')}</h2></div>`;
   else if(!state.username) html = authView();
   else if(state.screen === 'home') html = homeView();
   else if(state.screen === 'level') html = levelView();
@@ -1147,6 +1148,8 @@ function render(){
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if(!el) return; const act = el.dataset.act;
+
+  if(act === 'retry-startup') { location.reload(); return; }
 
   if(act === 'toggle-lang') {
     state.lang = state.lang === 'am' ? 'en' : 'am';
@@ -1563,7 +1566,12 @@ if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; render(); });
 window.addEventListener('appinstalled', () => { state.installPrompt = null; state.isStandalone = true; render(); flash(t('installed')); });
 
+const startupWatchdog = setTimeout(() => {
+  if (state.loading) { state.startupStalled = true; render(); }
+}, 12000);
+
 onAuthStateChanged(auth, async (user) => {
+  state.startupStalled = false;
   state.teacherUnlocked = false;
   if (user) {
     const allowed = await checkSecurityAndPayments(user);
@@ -1599,13 +1607,13 @@ onAuthStateChanged(auth, async (user) => {
     } catch (e) { state.userProgress = {}; }
 
     await loadCloudLevels();
-    state.screen = 'home'; state.loading = false; render();
+    state.screen = 'home'; state.loading = false; clearTimeout(startupWatchdog); render();
   } else {
     state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; 
     state.isPaymentBlocked = false; 
     state.isPendingApproval = false;
     document.body.classList.remove('student-mode');
-    render();
+    clearTimeout(startupWatchdog); render();
   }
 });
 </script>
