@@ -507,7 +507,7 @@ async function uploadToCloudinary(file) {
 let state = {
   screen: 'auth', authMode: 'signin', username: null, uid: null, userProgress: {},
   levels: [], levelId: null, quiz: null, teacherUnlocked: false, editing: null,
-  flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false, startupStalled: false,
+  flash: null, loading: true, uploading: false, installPrompt: null, isStandalone: false, startupStalled: false, startupError: false,
   allUsers: [], blockedEmails: [], paymentDetails: '', 
   isPaymentBlocked: false, isPendingApproval: false, paymentStatus: 'active', userJoinedDate: null,
   isAppBlurred: false, showInstallGuide: false,
@@ -537,9 +537,13 @@ async function saveProgressToCloud(levelId, score, passed) {
   await setDoc(doc(db, 'users', state.uid), { progress: state.userProgress, email: state.username }, { merge: true });
 }
 
+async function getStartupDoc(ref) {
+  return await Promise.race([getDoc(ref), new Promise((_, reject) => setTimeout(() => reject(new Error('Startup connection timed out')), 7000))]);
+}
+
 async function loadCloudLevels() {
   try {
-    const docSnap = await getDoc(doc(db, 'config', 'levels'));
+    const docSnap = await getStartupDoc(doc(db, 'config', 'levels'));
     if (docSnap.exists() && docSnap.data().levels) state.levels = docSnap.data().levels;
     else { state.levels = DEFAULT_LEVELS; await setDoc(doc(db, 'config', 'levels'), { levels: DEFAULT_LEVELS }); }
   } catch (e) { state.levels = DEFAULT_LEVELS; }
@@ -573,7 +577,7 @@ async function checkSecurityAndPayments(user) {
   state.isPaymentBlocked = false;
 
   try {
-    const blockSnap = await getDoc(doc(db, 'config', 'blocked'));
+    const blockSnap = await getStartupDoc(doc(db, 'config', 'blocked'));
     if (blockSnap.exists()) {
       const blockedEmails = blockSnap.data().emails || [];
       if (blockedEmails.includes(user.email)) {
@@ -583,7 +587,7 @@ async function checkSecurityAndPayments(user) {
       }
     }
 
-    const userSnap = await getDoc(doc(db, 'users', user.uid));
+    const userSnap = await getStartupDoc(doc(db, 'users', user.uid));
     if (userSnap.exists()) {
       const userData = userSnap.data();
       state.userJoinedDate = userData.joinedDate;
@@ -591,7 +595,7 @@ async function checkSecurityAndPayments(user) {
       const userStatus = userData.status || 'pending'; 
 
       if (user.email !== TEACHER_EMAIL && userStatus === 'pending') {
-        const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
+        const paySnap = await getStartupDoc(doc(db, 'config', 'paymentDetails'));
         if (paySnap.exists()) state.paymentDetails = paySnap.data().text || t('contactTeacher');
         state.isPendingApproval = true;
         return true; 
@@ -606,7 +610,7 @@ async function checkSecurityAndPayments(user) {
         }
       }
     }
-  } catch (e) { console.error("Security check failed", e); }
+  } catch (e) { console.error("Security check failed", e); state.startupError = true; return false; }
   return true;
 }
 
@@ -1102,7 +1106,7 @@ function render(){
   }
 
   let html = '';
-  if(state.loading && state.startupStalled) html = `<div class="center" style="margin:30vh auto 0;max-width:340px;padding:24px"><h2>${t('loading')}</h2><p>Still connecting. Check your internet connection, then try again.</p><button class="big" data-act="retry-startup">Retry</button></div>`;
+  if(state.startupError || (state.loading && state.startupStalled)) html = `<div class="center" style="margin:25vh auto 0;max-width:340px;padding:24px"><h2>Connection problem</h2><p>Noor could not load your account information from Firebase. Check your connection and try again.</p><button class="big" data-act="retry-startup">Retry</button></div>`;
   else if(state.loading) html = `<div class="center" style="margin-top:40vh"><h2>${t('loading')}</h2></div>`;
   else if(!state.username) html = authView();
   else if(state.screen === 'home') html = homeView();
@@ -1572,17 +1576,18 @@ const startupWatchdog = setTimeout(() => {
 
 onAuthStateChanged(auth, async (user) => {
   state.startupStalled = false;
+  state.startupError = false;
   state.teacherUnlocked = false;
   if (user) {
     const allowed = await checkSecurityAndPayments(user);
-    if(!allowed) return; 
+    if(!allowed) { state.loading = false; state.startupStalled = false; render(); return; } 
 
     state.uid = user.uid;
     state.username = user.email;
     
     try {
       const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
+      const docSnap = await getStartupDoc(docRef);
       
       if (docSnap.exists()) {
         let updates = {};
