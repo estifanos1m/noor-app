@@ -1637,7 +1637,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 </script>
 <script>
-  if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log(err)); }); }
+  if ('serviceWorker' in navigator) { window.addEventListener('load', async () => { try { const hadController = !!navigator.serviceWorker.controller; const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }); registration.update().catch(() => {}); if (hadController) navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true }); } catch (err) { console.log('Service worker update check failed:', err); } }); }
 </script>
 </body>
 </html>
