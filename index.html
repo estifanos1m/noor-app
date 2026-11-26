@@ -604,7 +604,7 @@ async function checkSecurityAndPayments(user) {
       if (user.email !== TEACHER_EMAIL && userStatus === 'approved') {
         const days = getDaysSince(userData.joinedDate);
         if (days >= PAYMENT_CYCLE_DAYS && state.paymentStatus !== 'active') {
-          const paySnap = await getDoc(doc(db, 'config', 'paymentDetails'));
+          const paySnap = await getStartupDoc(doc(db, 'config', 'paymentDetails'));
           if (paySnap.exists()) state.paymentDetails = paySnap.data().text || t('contactTeacher');
           state.isPaymentBlocked = true;
         }
