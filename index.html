@@ -511,7 +511,8 @@ let state = {
   allUsers: [], blockedEmails: [], paymentDetails: '', 
   isPaymentBlocked: false, isPendingApproval: false, paymentStatus: 'active', userJoinedDate: null,
   isAppBlurred: false, showInstallGuide: false,
-  lang: localStorage.getItem('noor_lang') || 'am'
+  lang: localStorage.getItem('noor_lang') || 'am',
+  alphabetLevels: [], alphabetLevelId: null, alphabetEditing: null, alphabetLetterActive: null
 };
 
 function t(key) {
@@ -547,6 +548,18 @@ async function loadCloudLevels() {
 async function saveCloudLevels(levelsArray) {
   await setDoc(doc(db, 'config', 'levels'), { levels: levelsArray }, { merge: true });
   state.levels = levelsArray;
+}
+
+// Alphabet lessons use a separate Firestore document. Original lessons are never read or written here.
+async function loadAlphabetLevels() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'alphabetLevels'));
+    state.alphabetLevels = snap.exists() && Array.isArray(snap.data().levels) ? snap.data().levels : [];
+  } catch (e) { state.alphabetLevels = []; }
+}
+async function saveAlphabetLevels(levels) {
+  await setDoc(doc(db, 'config', 'alphabetLevels'), { levels }, { merge: true });
+  state.alphabetLevels = levels;
 }
 
 async function checkSecurityAndPayments(user) {
@@ -680,7 +693,31 @@ function homeView(){
     <div class="row between"><strong>${t('yourProgress')}</strong><span class="muted small">${passed} / ${levels.length} ${t('levelsCount')}</span></div>
     <div class="progress"><div style="width:${pct}%"></div></div>
   </div>
+  <button class="big ghost" data-act="open-alphabet" style="margin-top:14px;border-color:var(--accent)">🔤 ${state.lang === 'am' ? 'ፊደላት እና ድምፆች' : 'Alphabet Sounds'}</button>
   ${cards}`;
+}
+
+function alphabetHomeView(){
+  const cards = state.alphabetLevels.map((lv, i) => `<div class="level" data-act="open-alphabet-level" data-id="${esc(lv.id)}"><div class="lv-num">${i+1}</div><div class="meta"><h3>${esc(state.lang === 'am' ? (lv.title_am || lv.title) : (lv.title_en || lv.title))}</h3><p>${(lv.letters || []).length} ${state.lang === 'am' ? 'ፊደላት' : 'letters'}</p></div><div class="badge">▶️</div></div>`).join('');
+  return `<div class="topbar"><button class="ghost sm" data-act="go-home">← ${t('back')}</button><h2 style="margin:0;flex:1">${state.lang === 'am' ? 'ፊደላት እና ድምፆች' : 'Alphabet Sounds'}</h2><button class="ghost sm" data-act="toggle-lang">🌐 ${t('toggleLang')}</button></div>${cards || `<div class="card muted">${state.lang === 'am' ? 'ገና ትምህርት አልተጨመረም።' : 'No alphabet lessons have been added yet.'}</div>`}`;
+}
+
+function alphabetLevelView(){
+  const lv = state.alphabetLevels.find(x => x.id === state.alphabetLevelId);
+  if (!lv) return `<div class="topbar"><button class="ghost sm" data-act="open-alphabet">← ${t('back')}</button></div><div class="card">Lesson not found.</div>`;
+  const title = state.lang === 'am' ? (lv.title_am || lv.title) : (lv.title_en || lv.title);
+  const tiles = (lv.letters || []).map((letter, i) => `<button class="card" data-act="play-alphabet-letter" data-i="${i}" style="min-height:92px;display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:700;background:${state.alphabetLetterActive===i?'var(--warn)':'var(--card)'};color:var(--text);border:1px solid var(--line);cursor:pointer">${esc(letter.character || '')}</button>`).join('');
+  return `<div class="topbar"><button class="ghost sm" data-act="open-alphabet">← ${t('back')}</button><h2 style="margin:0">${esc(title)}</h2></div><div class="card"><p class="muted small">${state.lang === 'am' ? 'ፊደሉን በመንካት ድምፁን ያዳምጡ' : 'Tap a letter to hear its sound.'}</p><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">${tiles}</div></div>`;
+}
+
+function alphabetTeacherView(){
+  const rows = state.alphabetLevels.map((lv,i) => `<div class="row between" style="padding:10px 0;border-bottom:1px solid var(--line)"><strong>${i+1}. ${esc(lv.title || 'Untitled')}</strong><button class="ghost sm" data-act="edit-alphabet-level" data-id="${esc(lv.id)}">${t('edit')}</button><button class="danger sm" data-act="delete-alphabet-level" data-id="${esc(lv.id)}">🗑</button></div>`).join('');
+  return `<div class="topbar"><button class="ghost sm" data-act="back-teacher">← ${t('back')}</button><h2 style="margin:0">${state.lang==='am'?'የፊደል ትምህርቶች':'Alphabet lessons'}</h2></div><div class="card"><button class="big" data-act="new-alphabet-level">＋ ${state.lang==='am'?'አዲስ ትምህርት':'New lesson'}</button>${rows || `<p class="muted">${state.lang==='am'?'ገና ትምህርት የለም':'No lessons yet.'}</p>`}</div>`;
+}
+
+function alphabetEditView(){
+  const lv = state.alphabetEditing;
+  return `<div class="topbar"><button class="ghost sm" data-act="alphabet-teacher">← ${t('back')}</button><h2 style="margin:0">${state.lang==='am'?'ትምህርት አስተካክል':'Edit lesson'}</h2></div><div class="card"><label>${state.lang==='am'?'የትምህርቱ ስም':'Lesson title'}</label><input data-alphabet-field="title" value="${esc(lv.title || '')}" placeholder="Lesson title"></div>${(lv.letters||[]).map((letter,i)=>`<div class="card"><div class="row between"><strong>${state.lang==='am'?'ፊደል':'Letter'} ${i+1}</strong><button class="danger sm" data-act="remove-alphabet-letter" data-i="${i}">${state.lang==='am'?'አስወግድ':'Remove'}</button></div><label>${state.lang==='am'?'ፊደሉ':'Character'}</label><input data-alphabet-field="character" data-i="${i}" value="${esc(letter.character||'')}" placeholder="ا"><label>${state.lang==='am'?'የድምፅ ፋይል':'Sound file'}</label><input type="file" accept="audio/*" data-upload-alphabet-audio="${i}">${letter.audioUrl?`<p class="muted small">${state.lang==='am'?'ድምፅ ተጭኗል':'Audio uploaded'} ✓</p>`:''}</div>`).join('')}<button class="big ghost" data-act="add-alphabet-letter">＋ ${state.lang==='am'?'ፊደል ጨምር':'Add letter'}</button><button class="big" data-act="save-alphabet-level">${state.lang==='am'?'አስቀምጥ':'Save lesson'}</button>`;
 }
 
 function levelView(){
@@ -823,6 +860,7 @@ function teacherView(){
     <div class="row between"><strong>${t('tools')}</strong></div>
     <button class="big ghost" data-act="manage-students" style="margin-bottom:10px;">👥 ${t('manageStudents')}</button>
     <button class="big ghost" data-act="manage-payment-details">🏦 ${t('setPaymentDetails')}</button>
+    <button class="big ghost" data-act="alphabet-teacher" style="margin-top:10px">🔤 ${state.lang==='am'?'የፊደል ትምህርቶችን አስተዳድር':'Manage Alphabet Lessons'}</button>
   </div>
 
   <div class="card">
@@ -1032,7 +1070,7 @@ function render(){
     document.body.classList.remove('student-mode');
   }
 
-  if (!isTeacher && ['teacher', 'manage-students', 'manage-payment-details', 'edit'].includes(state.screen)) {
+  if (!isTeacher && ['teacher', 'manage-students', 'manage-payment-details', 'edit', 'alphabet-teacher', 'alphabet-edit'].includes(state.screen)) {
     state.screen = 'home';
   }
 
@@ -1051,6 +1089,10 @@ function render(){
   else if(!state.username) html = authView();
   else if(state.screen === 'home') html = homeView();
   else if(state.screen === 'level') html = levelView();
+  else if(state.screen === 'alphabet-home') html = alphabetHomeView();
+  else if(state.screen === 'alphabet-level') html = alphabetLevelView();
+  else if(state.screen === 'alphabet-teacher') html = alphabetTeacherView();
+  else if(state.screen === 'alphabet-edit') html = alphabetEditView();
   else if(state.screen === 'quiz') html = quizView();
   else if(state.screen === 'teacher-gate') html = teacherGateView();
   else if(state.screen === 'teacher') html = teacherView();
@@ -1305,6 +1347,16 @@ document.addEventListener('click', async e => {
     await fetchAllUsers(); state.screen = 'teacher'; render(); return; 
   }
   if(act === 'open-level'){ state.levelId = el.dataset.id; state.screen = 'level'; render(); return; }
+  if(act === 'open-alphabet') { await loadAlphabetLevels(); state.screen = 'alphabet-home'; render(); return; }
+  if(act === 'open-alphabet-level') { state.alphabetLevelId = el.dataset.id; state.alphabetLetterActive = null; state.screen = 'alphabet-level'; render(); return; }
+  if(act === 'play-alphabet-letter') { const lv = state.alphabetLevels.find(x => x.id === state.alphabetLevelId); const letter = lv?.letters?.[Number(el.dataset.i)]; if(letter?.audioUrl) { state.alphabetLetterActive = Number(el.dataset.i); render(); const audio = new Audio(letter.audioUrl); audio.play().catch(() => flash('Could not play this audio.')); } else flash(state.lang==='am'?'ለዚህ ፊደል ድምፅ አልተጨመረም':'No audio has been added for this letter.'); return; }
+  if(act === 'alphabet-teacher') { if(state.username !== TEACHER_EMAIL || !state.teacherUnlocked) return; await loadAlphabetLevels(); state.screen = 'alphabet-teacher'; render(); return; }
+  if(act === 'new-alphabet-level') { if(state.username !== TEACHER_EMAIL) return; state.alphabetEditing = {id:'alv'+Date.now(),title:'New lesson',letters:[]}; state.screen='alphabet-edit'; render(); return; }
+  if(act === 'edit-alphabet-level') { if(state.username !== TEACHER_EMAIL) return; const found=state.alphabetLevels.find(x=>x.id===el.dataset.id); if(!found) return; state.alphabetEditing=JSON.parse(JSON.stringify(found)); state.screen='alphabet-edit'; render(); return; }
+  if(act === 'add-alphabet-letter') { if(state.username !== TEACHER_EMAIL || !state.alphabetEditing) return; state.alphabetEditing.letters.push({character:'',audioUrl:''}); render(); return; }
+  if(act === 'remove-alphabet-letter') { if(state.username !== TEACHER_EMAIL || !state.alphabetEditing) return; state.alphabetEditing.letters.splice(Number(el.dataset.i),1); render(); return; }
+  if(act === 'delete-alphabet-level') { if(state.username !== TEACHER_EMAIL || !confirm(t('confirmDelete'))) return; await saveAlphabetLevels(state.alphabetLevels.filter(x=>x.id!==el.dataset.id)); render(); return; }
+  if(act === 'save-alphabet-level') { if(state.username !== TEACHER_EMAIL || !state.alphabetEditing) return; const lv=state.alphabetEditing; if(!lv.title.trim()) return flash(state.lang==='am'?'የትምህርቱን ስም ያስገቡ':'Enter a lesson title'); if(!lv.letters.length || lv.letters.some(x=>!x.character.trim())) return flash(state.lang==='am'?'ፊደሎቹን ያስገቡ':'Add the letters first'); state.uploading=true; render(); const next=[...state.alphabetLevels]; const idx=next.findIndex(x=>x.id===lv.id); if(idx>=0) next[idx]=lv; else next.push(lv); try { await saveAlphabetLevels(next); state.uploading=false; state.screen='alphabet-teacher'; flash(state.lang==='am'?'ተቀምጧል':'Lesson saved'); } catch(err) { state.uploading=false; render(); flash('Could not save lesson'); } return; }
   
   if(act === 'start-quiz' || act === 'retry-quiz'){ 
     state.quiz = { i:0, picked:null, answers:[], correct:0, done:false }; 
@@ -1407,7 +1459,10 @@ document.addEventListener('click', async e => {
 });
 
 document.addEventListener('input', e => {
-  const t = e.target; if(!state.editing) return;
+  const t = e.target;
+  if(t.dataset.alphabetField === 'title' && state.alphabetEditing) state.alphabetEditing.title = t.value;
+  if(t.dataset.alphabetField === 'character' && state.alphabetEditing) state.alphabetEditing.letters[Number(t.dataset.i)].character = t.value;
+  if(!state.editing) return;
   if(t.dataset.field === 'title') { state.editing.title = t.value; state.editing.title_am = t.value; state.editing.title_en = t.value; }
   if(t.dataset.field === 'item-text') { state.editing.items[Number(t.dataset.i)].text = t.value; state.editing.items[Number(t.dataset.i)].text_am = t.value; state.editing.items[Number(t.dataset.i)].text_en = t.value; }
   if(t.dataset.field === 'item-url') state.editing.items[Number(t.dataset.i)].url = t.value;
@@ -1417,6 +1472,12 @@ document.addEventListener('input', e => {
 
 document.addEventListener('change', async e => {
   const t = e.target;
+  if(t.dataset.uploadAlphabetAudio !== undefined && state.alphabetEditing && state.username === TEACHER_EMAIL) {
+    const file=t.files && t.files[0]; if(!file) return; const i=Number(t.dataset.uploadAlphabetAudio); state.uploading=true; render();
+    try { const url=await uploadToCloudinary(file); state.alphabetEditing.letters[i].audioUrl=url; state.uploading=false; render(); flash(t('successFileUpload')); }
+    catch(err) { state.uploading=false; render(); flash(t('errorFileUpload')); }
+    return;
+  }
   if(t.dataset.answer !== undefined && state.editing){ state.editing.quiz[Number(t.dataset.answer)].answer = Number(t.dataset.oi); return; }
   
   if(t.dataset.uploadQimage !== undefined && state.editing){
