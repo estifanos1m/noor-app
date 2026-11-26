@@ -321,6 +321,7 @@ const translations = {
     textOption: 'የጽሑፍ አማራጭ',
     saveLevel: '💾 ደረጃውን አስቀምጥ',
     loading: 'በመጫን ላይ...',
+    quizLockMessage: 'በተከታታይ 3 ፈተናዎችን አላለፉም። እባክዎ በግምት {hours} ሰዓት በኋላ እንደገና ይሞክሩ።',
     toggleLang: 'English',
     lvl: 'ደረጃ',
     q: 'ጥያቄ'
@@ -467,6 +468,7 @@ const translations = {
     textOption: 'Text option',
     saveLevel: '💾 Save level',
     loading: 'Loading...',
+    quizLockMessage: 'You failed 3 tests in a row. Try again in about {hours} hours.',
     toggleLang: 'አማርኛ',
     lvl: 'Level',
     q: 'Q'
@@ -577,7 +579,7 @@ async function saveAlphabetLevels(levels) {
 const QUIZ_LOCK_MS=6*60*60*1000;
 function quizLock(mode,id){const m=mode==='alphabet'?state.alphabetQuizLocks:state.quizLocks;const u=Number(m?.[id]?.until||0);return u>Date.now()?u:0;}
 async function recordQuizResult(mode,id,passed){const m=mode==='alphabet'?state.alphabetQuizLocks:state.quizLocks;const e=m[id]||{failures:0,until:0};if(passed)m[id]={failures:0,until:0};else{e.failures=Number(e.failures||0)+1;if(e.failures>=3){e.failures=0;e.until=Date.now()+QUIZ_LOCK_MS;}m[id]=e;}if(state.uid)await setDoc(doc(db,'users',state.uid),mode==='alphabet'?{alphabetQuizLocks:m}:{quizLocks:m},{merge:true});}
-function quizLockMessage(u){return `You failed 3 tests in a row. Try again in about ${Math.ceil((u-Date.now())/3600000)} hours.`;}
+function quizLockMessage(u){return t('quizLockMessage').replace('{hours}',String(Math.max(1,Math.ceil((u-Date.now())/3600000))));}
 async function saveAlphabetProgress(levelId, score, passed) {
   if (!state.uid) return;
   state.alphabetProgress[levelId] = { passed, score, date: Date.now() };
