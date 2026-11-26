@@ -1474,8 +1474,8 @@ document.addEventListener('change', async e => {
   const t = e.target;
   if(t.dataset.uploadAlphabetAudio !== undefined && state.alphabetEditing && state.username === TEACHER_EMAIL) {
     const file=t.files && t.files[0]; if(!file) return; const i=Number(t.dataset.uploadAlphabetAudio); state.uploading=true; render();
-    try { const url=await uploadToCloudinary(file); state.alphabetEditing.letters[i].audioUrl=url; state.uploading=false; render(); flash(t('successFileUpload')); }
-    catch(err) { state.uploading=false; render(); flash(t('errorFileUpload')); }
+    try { const url=await uploadToCloudinary(file); state.alphabetEditing.letters[i].audioUrl=url; state.uploading=false; render(); flash(state.lang==='am'?'ድምፅ ተጭኗል':'Audio uploaded'); }
+    catch(err) { state.uploading=false; render(); flash(state.lang==='am'?'መጫን አልተሳካም':'Audio upload failed'); }
     return;
   }
   if(t.dataset.answer !== undefined && state.editing){ state.editing.quiz[Number(t.dataset.answer)].answer = Number(t.dataset.oi); return; }
