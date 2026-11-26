@@ -156,7 +156,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { initializeFirestore, enableMultiTabIndexedDbPersistence, doc, getDoc, getDocFromCache, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDC0Kuc8fSTzG5mBNvavf4s4rTKo7Vx5DQ",
@@ -169,7 +169,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+const persistenceReady = enableMultiTabIndexedDbPersistence(db).catch(err => { console.warn('Offline cache unavailable:', err.code || err); });
 
 const CLOUDINARY_CLOUD_NAME = 'bzk8vaxp';
 const CLOUDINARY_UPLOAD_PRESET = 'noor_uploads';
@@ -537,16 +538,24 @@ async function saveProgressToCloud(levelId, score, passed) {
   await setDoc(doc(db, 'users', state.uid), { progress: state.userProgress, email: state.username }, { merge: true });
 }
 
-async function getStartupDoc(ref) {
-  return await Promise.race([getDoc(ref), new Promise((_, reject) => setTimeout(() => reject(new Error('Startup connection timed out')), 7000))]);
+async function getStartupDoc(ref, allowCache = false) {
+  await persistenceReady;
+  try {
+    return await Promise.race([getDoc(ref), new Promise((_, reject) => setTimeout(() => reject(new Error('Startup connection timed out')), 7000))]);
+  } catch (error) {
+    if (allowCache) {
+      try { return await getDocFromCache(ref); } catch (_) {}
+    }
+    throw error;
+  }
 }
 
 async function loadCloudLevels() {
   try {
-    const docSnap = await getStartupDoc(doc(db, 'config', 'levels'));
+    const docSnap = await getStartupDoc(doc(db, 'config', 'levels'), true);
     if (docSnap.exists() && docSnap.data().levels) state.levels = docSnap.data().levels;
     else { state.levels = DEFAULT_LEVELS; await setDoc(doc(db, 'config', 'levels'), { levels: DEFAULT_LEVELS }); }
-  } catch (e) { state.levels = DEFAULT_LEVELS; }
+  } catch (e) { console.error('Could not load saved lessons:', e); throw e; }
 }
 
 async function saveCloudLevels(levelsArray) {
@@ -1587,7 +1596,7 @@ onAuthStateChanged(auth, async (user) => {
     
     try {
       const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getStartupDoc(docRef);
+      const docSnap = await getStartupDoc(docRef, true);
       
       if (docSnap.exists()) {
         let updates = {};
@@ -1611,8 +1620,13 @@ onAuthStateChanged(auth, async (user) => {
       }
     } catch (e) { state.userProgress = {}; }
 
-    await loadCloudLevels();
-    state.screen = 'home'; state.loading = false; clearTimeout(startupWatchdog); render();
+    try {
+      await loadCloudLevels();
+      state.screen = 'home'; state.loading = false; state.startupError = false; clearTimeout(startupWatchdog); render();
+    } catch (error) {
+      console.error('Noor startup failed:', error);
+      state.loading = false; state.startupError = true; clearTimeout(startupWatchdog); render();
+    }
   } else {
     state.username = null; state.uid = null; state.screen = 'auth'; state.loading = false; 
     state.isPaymentBlocked = false; 
