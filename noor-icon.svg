@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="90" fill="#F9F6F0"/>
+  <rect x="20" y="20" width="472" height="472" rx="70" fill="none" stroke="#D1BFAE" stroke-width="12"/>
+  <path d="M245 150 C245 110 275 110 275 150 L275 420 A12 12 0 0 1 251 420 L251 160 C251 140 245 140 245 150Z" fill="#111"/>
+  <text x="45" y="95" font-family="system-ui,sans-serif" font-weight="900" font-size="64" fill="#B91C1C">Alif</text>
+  <text x="470" y="470" font-family="system-ui,sans-serif" font-weight="900" font-size="56" fill="#B91C1C" text-anchor="end">አልፍ</text>
+</svg>
